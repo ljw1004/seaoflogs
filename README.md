@@ -1,6 +1,6 @@
 # Sea of logs
 "Sea of logs" is an interactive tool to visualize LSP traces and other logs.
-* Explore: [demo1](https://ljw1004.github.io/seaoflogs/demo.html?filter=title+%3D%3D+%27%24%2Fprogress%27&text=json.token+%2B+%27+%27+%2B+json.value.kind+%2B+%27+%27+%2B+%28json.value.title+%7C%7C+json.value.message+%7C%7C+%27%27%29&color=json.token&log_rust_analyzer=hide_left), [demo2](), [demo3]()
+* Try it out: https://ljw1004.github.io/seaoflogs/demo.html
 * Load own logs: https://ljw1004.github.io/seaoflogs/
 
 The target audience for sea-of-logs is software developers who write language-service backends for Visual Studio Code or other editors. You'll often want to look at the trace of messages sent between VSCode and the language-service to see what happened, when, and why. VSCode lets you gather traces (Preferences > Settings and search for 'trace', then view it in the Output window, and copy/paste/save it to disk). But these traces are so voluminous you need to explore - filter out some messages, look at only some parts of the json payload for others, and tie together requests with their responses.
