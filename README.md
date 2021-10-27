@@ -17,6 +17,7 @@ Often you'll have logs from several sources, e.g. the VSCode extension you wrote
 * Technique: use `filter: title == '$/progress'` to look only at progress messages
 * Technique: use `text: json.token + json.value.kind` to extract key parts from the json payload
 * Technique: use `color: json.token` to see which messages are of interest
+
 https://user-images.githubusercontent.com/3316258/139136139-e8b96f7b-d800-4393-a5d4-95681cf835c0.mp4
 
 ## Demo 2: look at cancellations
@@ -24,6 +25,7 @@ https://user-images.githubusercontent.com/3316258/139136139-e8b96f7b-d800-4393-a
 * Technique: use `text: line` to see the most informative first line of messages
 * Technique: use `filter: title.includes('/did')` to get didOpen and didChange messages
 * Technique: use `text: (json?.textDocument ? filename + '#' + json.textDocument.version : '')` to get filename and version if present
+
 https://user-images.githubusercontent.com/3316258/139136151-7dd04b3c-ef22-4f90-9be4-d7e3cb698b59.mp4
 
 ## Demo 3: multiple logs
@@ -31,6 +33,7 @@ https://user-images.githubusercontent.com/3316258/139136151-7dd04b3c-ef22-4f90-9
 * Technique: Left/Center/Right drop-downs to send one log to the left and the other to the right
 * Technique: use `text: log.includes('rust') ? line : title` to render messages according to which log they're from
 * Technique: use `color: log` to color by log
+
 https://user-images.githubusercontent.com/3316258/139136158-6f4049be-d653-4bce-a477-ca84a7a4a3f1.mp4
 
 ## What kind of logs can be parsed
