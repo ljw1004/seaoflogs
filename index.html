@@ -760,13 +760,16 @@
     /** Writes a URLSearchParams into the UI controls
      */
     function write_controls(params) {
-      document.getElementById('input_filter').value = params.get('filter');
-      document.getElementById('input_start').value = params.get('start');
-      document.getElementById('input_end').value = params.get('end');
-      document.getElementById('input_text').value = params.get('text');
-      document.getElementById('input_id').value = params.get('id');
-      document.getElementById('input_color').value = params.get('color');
-      document.getElementById('input_details').value = params.get('details');
+      const write = (element, paramName) => {
+        if (params.has(paramName)) element.value = params.get(paramName);
+      }
+      write(document.getElementById('input_filter'), 'filter');
+      write(document.getElementById('input_start'), 'start');
+      write(document.getElementById('input_end'), 'end');
+      write(document.getElementById('input_text'), 'text');
+      write(document.getElementById('input_id'), 'id');
+      write(document.getElementById('input_color'), 'color');
+      write(document.getElementById('input_details'), 'details');
     }
 
     /** Adds a new log dropdown. 'checked' says whether it will be initially checked.
