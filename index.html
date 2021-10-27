@@ -495,7 +495,7 @@ function control_handler(event) {
 function message_handler(event, messageDiv, gindex) {
   event.stopPropagation();
   document.getElementById("menu").style.display = "none";
-  if (global_popup_message_index == gindex) {
+  if (global_popup_message_index == gindex && document.getElementById('popup').style.display == 'block') {
     render_popup(null);
   } else {
     global_popup_message_index = gindex;
@@ -1031,46 +1031,43 @@ function render_controls() {
     );
   }
   // What time controls do we want to show?
-  var endtimes = {};
+  var extremes = {};
   var earliest = null;
   var latest = null;
   for (const m of global_messages) {
-    if (endtimes[m.log] == null)
-      endtimes[m.log] = { earliest: null, latest: null };
+    if (extremes[m.log] == null)
+      extremes[m.log] = { earliest: null, latest: null };
     if (m.time == null) continue;
     if (earliest == null || m.time < earliest) earliest = m.time;
     if (latest == null || m.time > latest) latest = m.time;
-    if (endtimes[m.log].earliest == null || m.time < endtimes[m.log].earliest)
-      endtimes[m.log].earliest = m.time;
-    if (endtimes[m.log].latest == null || m.time > endtimes[m.log].latest)
-      endtimes[m.log].latest = m.time;
+    if (extremes[m.log].earliest == null || m.time < extremes[m.log].earliest)
+      extremes[m.log].earliest = m.time;
+    if (extremes[m.log].latest == null || m.time > extremes[m.log].latest)
+      extremes[m.log].latest = m.time;
   }
   if (earliest == null) {
     document.getElementById("time").style.display = "none";
     return;
   }
   document.getElementById("time").style.display = "block";
-  var startOptions = `<option></option><option value='${formatTime(
-    earliest,
-    "full"
-  )}''>${formatTime(earliest, "full")}</option>`;
-  var endOptions = `<option></option><option value='${formatTime(
-    latest,
-    "full"
-  )}''>${formatTime(latest, "full")}</option>`;
-  endOptions += `<option value='+5s'>+5s</option><option value='+10 minutes'>+10 minutes</option>`;
+  var s = formatTime(earliest, "full");
+  var html_start = `<option></option><option value='${s}'>${s}</option>`;
+  var s = formatTime(latest, "full");
+  var html_end = `<option></option><option value='${s}'>${s}</option>`;
+  html_end += `<option value='+5s'>+5s</option>`;
+  html_end += `<option value='+10 minutes'>+10 minutes</option>`;
   for (const log of logs_order) {
-    startOptions += `<option value='${formatTime(
-      endtimes[log].earliest,
-      "full"
-    )}'>${formatTime(endtimes[log].earliest, "full")} - ${log}</option>`;
-    endOptions += `<option value='${formatTime(
-      endtimes[log].latest,
-      "full"
-    )}'>${formatTime(endtimes[log].latest, "full")} - ${log}</option>`;
+    if (extremes[log].earliest != null) {
+      const s = formatTime(extremes[log].earliest, 'full');
+      html_start += `<option value='${s}'>${s} - ${log}</option>`;
+    }
+    if (extremes[log].latest != null) {
+      const s = formatTime(extremes[log].latest, 'full');
+      html_end += `<option value='${s}'>${s} - ${log}</option>`;
+    }
   }
-  document.getElementById("select_start").innerHTML = startOptions;
-  document.getElementById("select_end").innerHTML = endOptions;
+  document.getElementById("select_start").innerHTML = html_start;
+  document.getElementById("select_end").innerHTML = html_end;
 }
 
 // ===================================================================
@@ -1159,7 +1156,7 @@ function parse_message(log, prev_time, lines) {
   while (lines.slice(-1)[0] == "") {
     lines.pop();
   }
-  if (lines.length == 0 || lines[0].charAt(0) != "[") {
+  if (lines.length == 0 || !line_starts_message(lines[0])) {
     return null;
   }
 
@@ -1171,12 +1168,21 @@ function parse_message(log, prev_time, lines) {
   // We strip leading and trailing whitespace from tags.
   var s = lines[0];
   var tags = [];
+  {
+    const match = s.match(/^([^\[ ]*) /);
+    if (match) {
+      tags.push(match[1]);
+      s = s.slice(match[0].length);
+    }
+  }
   while (true) {
     const match = s.match(/^\[ *([^\]\{\}\(\)]+)\] */);
     if (!match) break;
     tags.push(match[1].replace(/ *$/, ""));
     s = s.slice(match[0].length);
   }
+
+  s = s.replace(/^: */,'');
 
   const line = s;
 
@@ -1204,7 +1210,7 @@ function parse_message(log, prev_time, lines) {
   // Can we extract any filenames out of the rest of the line?
   var filename = null;
   {
-    const match = (" " + s).match(/([ '"])(\/[0-9A-Za-z/_.]*)/);
+    const match = (" " + s).match(/([ '"])(\/[0-9A-Za-z/_\-.]*)/);
     if (match) {
       filename = match[2].split("\\").pop().split("/").pop();
     }
@@ -1213,26 +1219,12 @@ function parse_message(log, prev_time, lines) {
   // Can we extract json from the rest of the line plus all subsequent lines?
   var json = null;
   {
-    // attempt 1: start json at the first { we see on the first line, plus all subsequent lines
+    // attempt 1: start json at the first { or [ we see on the first line, plus all subsequent lines
     var ji = s.indexOf("{");
-    if (ji != -1) {
-      try {
-        json = JSON.parse(s.slice(ji) + "\n" + lines.slice(1).join("\n"));
-      } catch (e) {}
-    }
-    // attempt 2: start json at the first [ we see (after tags) on the first line, plus all subsequent lines
-    ji = s.indexOf("[");
-    if (json == null && ji != -1) {
-      try {
-        json = JSON.parse(s.slice(ji) + "\n" + lines.slice(1).join("\n"));
-      } catch (e) {}
-    }
-    // attempt 3: look only on subsequent lines
-    if (json == null) {
-      try {
-        json = JSON.parse(lines.slice(1).join("\n"));
-      } catch (e) {}
-    }
+    if (ji == -1) ji = s.indexOf('[');
+    if (ji != -1) json = parse_json_relaxed(s.slice(ji) + "\n" + lines.slice(1).join("\n"));
+    // attempt 2: look only on subsequent lines
+    if (json == null) json = parse_json_relaxed(lines.slice(1).join("\n"));
   }
 
   // Does one of the tags look like a timestamp? or have the form "...#..."?
@@ -1245,18 +1237,25 @@ function parse_message(log, prev_time, lines) {
   var id = null;
   var oldtags = tags;
   var tags = { positional: [] };
+  const first_tag = oldtags.length == 0 ? null : oldtags[0];
+  if (['INFO','DEBUG','ERROR'].includes(first_tag)) {
+    tags['kind'] = first_tag;
+    oldtags.shift();
+  }
   for (const tag of oldtags) {
     const match_time =
       tag.match(/\d\d\d\d-\d\d-\d\d (\d\d):(\d\d):(\d\d).(\d\d\d)/) ||
       tag.match(/(\d\d):(\d\d):(\d\d).(\d\d\d)/) ||
       tag.match(/\d\d\d\d-\d\d-\d\d (\d\d):(\d\d):(\d\d)/) ||
-      tag.match(/(\d\d):(\d\d):(\d\d)/);
+      tag.match(/(\d\d):(\d\d):(\d\d)/) ||
+      tag.match(/\d+\/\d+\/\d+, (\d+):(\d+):(\d+)() ((AM|PM))?/);
     if (match_time) {
       const h = parseInt(match_time[1]);
       const m = parseInt(match_time[2]);
       const s = parseInt(match_time[3]);
       const ms = parseInt(match_time[4] || "0");
-      time = new Date(Date.UTC(1970, 0, 1, h, m, s, ms));
+      const ampm = match_time[5];
+      time = new Date(Date.UTC(1970, 0, 1, h + (ampm == 'PM' ? 12 : 0), m, s, ms));
     } else {
       const match_id = tag.match(/^([A-Za-z]*)#.*$/);
       if (match_id) {
@@ -1275,7 +1274,7 @@ function parse_message(log, prev_time, lines) {
   // LSP messages have a peculiar format.
   {
     const match = lines[0].match(
-      /^\[Trace - (?<h>\d+):(?<m>\d+):(?<s>\d+) (?<pm>(AM|PM))\] (?<dir>(Sending|Received)) request '(?<method>.*) - \((?<id>\d*)\)'$/
+      /^\[Trace - (?<h>\d+):(?<m>\d+):(?<s>\d+) (?<pm>(AM|PM))\] (?<dir>(Sending|Received)) (?<kind>(request|response|notification)) '(?<method_and_id>[^']*)' *(?<body>.*)$/
     );
     if (match) {
       const h = parseInt(match.groups.h) + (match.groups.pm == "AM" ? 0 : 12);
@@ -1283,35 +1282,34 @@ function parse_message(log, prev_time, lines) {
       const s = parseInt(match.groups.s);
       time = new Date(Date.UTC(1970, 0, 1, h, m, s));
       log = match.groups.dir == "Sending" ? "client" : "server";
-      title = match.groups.method; // e.g. 'textDocument/didChange'
-      const lsp_id = match.groups.id; // this includes id of notifications
-      body = "";
+      title = match.groups.method_and_id.replace(/ - \(.*\)$/,''); // e.g. 'textDocument/didChange'
+      body = match.groups.body;
       json = lines
         .slice(1)
         .join("\n")
-        .replace(/^(Result|Params): /, "");
+        .replace(/^(Result|Params|Error): /, "");
       try {
         json = JSON.parse(json);
       } catch (e) {
-        json = null;
+        json = null; // includes the case "No result returned"
       }
-      // for id, we'll pick up only request/response/cancellation IDs, and prefix them by whether the ID was synthesized on sender or receiver
-      const kind =
-        json?.id == null
-          ? "notification"
-          : json.result != null || json.error != null
-          ? "response"
-          : "request";
-      tags = { kind, lsp_id };
-      var originate_by_client = log == "client" ? true : false;
-      if (kind == "response") originate_by_client = !originate_by_client;
-      id =
-        title == "$/cancelRequest"
-          ? String(json?.params?.id)
-          : json?.id == null
-          ? null
-          : String(json?.id);
-      id = id == null ? null : originate_by_client ? id : `s#${id}`;
+      // Some traces have json {jsonrpc:, id:, params|result|error: }
+      // Others merely have the params/result/error
+      var kind;
+      if (json?.hasOwnProperty('jsonrpc')) {
+        id = json.id;
+        kind = id == null ? "notification" : json.result != null || json.error != null ? "response" : "request";
+        if (title == '$/cancelRequest') id = json.params.id;
+      } else {
+        const matchid = match.groups.method_and_id.match(/ - \((.*)\)$/);
+        id = (matchid) ? matchid[1] : null;
+        kind = match.groups.kind;
+        if (title == '$/cancelRequest') id = json.id;
+      }
+      var originate_by_server = log == "server" ? true : false;
+      if (kind == "response") originate_by_server = !originate_by_server;
+      if (originate_by_server && id != null) id = `s#${id}`;
+      tags = { kind };
       // for file, heuristic is to pick either params.textDocument.uri, or the first didWatcheFilesChanged filename
       const change0 =
         json?.params?.changes?.length > 0 ? json?.params?.changes[0] : null;
@@ -1343,6 +1341,15 @@ function parse_message(log, prev_time, lines) {
   };
 }
 
+/** Heuristic for whether this line starts a message.
+ */
+function line_starts_message(line) {
+  return line.startsWith('[')
+    || line.startsWith('INFO [')
+    || line.startsWith('DEBUG [')
+    || line.startsWith('ERROR [');
+}
+
 /**
  * Given the name of a logfile we're processing, and its content,
  * parse it into a list of messages and return that list.
@@ -1356,7 +1363,7 @@ function parse_log(log, lines) {
   var prev_time = null;
   var acc = [];
   for (const line of lines) {
-    if (line.charAt(0) == "[") {
+    if (line_starts_message(line)) {
       const m = parse_message(log, prev_time, acc);
       prev_time = m?.time || prev_time;
       messages.push(m);
@@ -1508,6 +1515,32 @@ function logname_from_filepath(filepath) {
   if (extension >= 3 && extension < filename.length - 3)
     return filename.substring(0, extension);
   return filename;
+}
+
+/** Attempt to parse it first as proper json, else as heuristic relaxed json.
+ * Returns null if it couldn't be parsed.
+ * CARE: we must never 'eval' log input. That's why we use regexps to
+ * approximate turning relaxed json into proper json.
+ */
+function parse_json_relaxed(s) {
+  if (!s.match(/^ *[\[\{]/)) return null;
+  try { return JSON.parse(s); } catch (e) {}
+  // relaxed json: we'll use double-quotes not single-quotes for keys and values
+  // This will also affect single-quotes inside values, but it's the log's
+  // fault for using relaxed json in the first place so you get what you get...
+  s = s.replace(/'/g, '"');
+  // we'll escape any colons inside values
+  s = s.replace(/:\s*"([^"]*)"/g, function(match, p1) {
+    return ': "' + p1.replace(/:/g, '@colon@') + '"';
+  })
+  // put quotes around unquoted identifiers
+  s = s.replace(/([a-z0-9A-Z_]+):/g, '"$1": ');
+  // undefined
+  s = s.replace(/"([a-z0-9A-Z_]+)":\s*undefined,?/g, '');
+  // unescape colons
+  s = s.replace(/@colon@/g, ':');
+  try { return JSON.parse(s); } catch (e) {}
+  return null;
 }
 
 /** Given a string, renders it suitable for html e.g. `<p>${esc(s)}</p>`
