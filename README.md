@@ -5,7 +5,7 @@ This is an interactive tool to visualize LSP traces and other logs.
 
 ## How to deploy
 
-Option 1: Launch sea-of-logs at https://ljw1004.github.io and load your logfiles manually.
+Option 1: Launch sea-of-logs at https://ljw1004.github.io/seaoflogs/ and load your logfiles manually.
 
 Option 2: Bookmark your settings. As you set up filters/viewers within sea-of-logs, the URL bar will update. You can bookmark and visit the same URL later to pick up with the same filters/viewers, or share the URL with colleagues.
 
