@@ -1,7 +1,11 @@
 # Sea of logs
 This is an interactive tool to visualize LSP traces and other logs.
 
-[TODO: video demonstrations of usage scenarios]
+https://user-images.githubusercontent.com/3316258/139136139-e8b96f7b-d800-4393-a5d4-95681cf835c0.mp4
+
+https://user-images.githubusercontent.com/3316258/139136151-7dd04b3c-ef22-4f90-9be4-d7e3cb698b59.mp4
+
+https://user-images.githubusercontent.com/3316258/139136158-6f4049be-d653-4bce-a477-ca84a7a4a3f1.mp4
 
 ## How to deploy
 
