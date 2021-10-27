@@ -6,39 +6,40 @@
   <style type="text/css">
     html {
       height: 100%;
-      width: 100%;
-      margin: 0;
     }
 
     body {
       margin: 0;
       height: 100%;
-      width: 100%;
-      background-color: white;
-      color: black;
-    }
-
-    table {
-      height: 100%;
-      width: 100%;
-      border-collapse: collapse;
+      display: flex;
+      flex-wrap: nowrap;
     }
 
     #left {
-      position: fixed;
-      width: 20%;
-      height: 100%;
+      flex: 1 15em; /* min width 15em, but grows less than #right */
       background-color: lightgray;
-      vertical-align: top;
+      overflow: hidden;
+      white-space: nowrap;
     }
 
     #right {
-      margin: 0;
-      margin-left: 20%;
-      width: 80%;
+      flex: 6;
+      overflow: hidden scroll; /* vertical scroll bar */
       font-size: small;
-      padding: 0;
+      position: relative; /* so that backgrounds+connectors are absolute with respect to this */
     }
+
+    #backgrounds,
+    #connectors
+     {
+      position: absolute; /* positioned relative to #right */
+      width: 100%; /* same width as #right */
+      z-index: -1;
+    }
+    
+    .message {margin: 0.5ex;}
+
+    .background {position:relative; width:100%; height:0; margin:0; z-index: -1;}
 
     #title a {
       color: black;
@@ -49,10 +50,6 @@
       color: black;
     }
 
-    .message,
-    .background {
-      margin: 0.5ex;
-    }
 
     .messagetext {
       cursor: grab;
@@ -60,21 +57,6 @@
 
     .messagetime {
       cursor: zoom-in;
-    }
-
-    #backgrounds,
-    #messages {
-      position: absolute;
-      width: 80%;
-      height: 100%;
-      margin: 0;
-    }
-
-    #connectors {
-      position: absolute;
-      width: 80%;
-      height: 100%;
-      margin: 0;
     }
 
     #left textarea {
@@ -326,7 +308,7 @@ function control_handler(event) {
   // Commonly, we'll use a timeout that's snappy for small message-lists
   // that can be recomputed quickly, and slower for larger lists.
   const displayed_message_length =
-    document.getElementById("messages").childElementCount;
+    document.getElementById('messages').childElementCount;
   const message_burden =
     displayed_message_length == 0
       ? global_messages.length
@@ -341,7 +323,7 @@ function control_handler(event) {
   } else if (event.type == "resize") {
     // upon window-resize, if the wrapping (hence, vertical height) of the message-list
     // hasn't changed then there's no need to recompute anything.
-    const lastChild = document.getElementById("messages").lastChild;
+    const lastChild = document.getElementById('messages').lastChild;
     const height =
       lastChild == null ? 0 : lastChild.offsetTop + lastChild.offsetHeight;
     if (height == global_resize_expected_height) return;
@@ -476,14 +458,14 @@ function control_handler(event) {
       (m) => m.gindex == global_popup_message_index
     );
     if (mindex == -1) render_popup(null);
-    else render_popup(document.getElementById("messages").children[mindex]);
+    else render_popup(document.getElementById('messages').children[mindex]);
     // set some global values
     for (var m of messages) {
       delete m.gindex;
       delete m.filter;
     }
     global_current_dictionary = build_dictionary(messages);
-    const lastChild = document.getElementById("messages").lastChild;
+    const lastChild = document.getElementById('messages').lastChild;
     global_resize_expected_height =
       lastChild == null ? 0 : lastChild.offsetTop + lastChild.offsetHeight;
   }, timeout);
@@ -677,7 +659,7 @@ function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
   var color_exn = null;
 
   // This is where we'll render to
-  const messagesElement = document.getElementById("messages");
+  const messagesElement = document.getElementById('messages');
   const svgElement = document.getElementById("svg");
   const backgroundsElement = document.getElementById("backgrounds");
 
@@ -847,29 +829,28 @@ function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
  * until they scrolled into view.
  */
 function render_missing_backgrounds() {
-  const container = document.getElementById("messages");
+  const messagesElement = document.getElementById('messages');
+  const backgroundsElement = document.getElementById('backgrounds');
   // let's bisect to find the first child visible in the viewport
   // i.e. the first element whose bottom is > 0
   var ifirst = 0;
-  var ilast = container.childElementCount;
+  var ilast = messagesElement.childElementCount;
   while (ilast - ifirst > 1) {
     const i = Math.floor((ifirst + ilast) / 2);
-    const r = container.children[i].getBoundingClientRect();
+    const r = messagesElement.children[i].getBoundingClientRect();
     if (r.bottom > 0) ilast = i;
     else if (r.bottom <= 0) ifirst = i;
   }
-  for (var i = ifirst; i < container.childElementCount; i++) {
-    const element = container.children[i];
+  for (var i = ifirst; i < messagesElement.childElementCount; i++) {
+    const element = messagesElement.children[i];
     const r = element.getBoundingClientRect();
-    if (r.top > container.offsetHeight) return;
+    if (r.top > messagesElement.offsetHeight) return;
     const color = element.getAttribute("data-color");
     if (color == null) continue;
     element.removeAttribute("data-color", null);
     const span = element.children[0];
-    html = `<div class='background' style='position:relative; width:100%; height:0; margin:0; top:${element.offsetTop}px; text-align:${element.style.textAlign};'><span style='display:inline-block; width:${span.offsetWidth}px; height:${span.offsetHeight}px; background-color:${color};'></span></div>`;
-    document
-      .getElementById("backgrounds")
-      .insertAdjacentHTML("beforeend", html);
+    html = `<div class='background' style='top:${element.offsetTop}px; text-align:${element.style.textAlign};'><span style='display:inline-block; width:${span.offsetWidth}px; height:${span.offsetHeight}px; background-color:${color};'></span></div>`;
+    backgroundsElement.insertAdjacentHTML("beforeend", html);
   }
 }
 
@@ -908,7 +889,7 @@ function render_popup(messageDiv) {
     messageDiv.style.textAlign
   );
   const rMessagesDiv = document
-    .getElementById("messages")
+    .getElementById('messages')
     .getBoundingClientRect();
   y -= rMessagesDiv.top;
   popup.style.left = `${x}px`;
