@@ -1639,10 +1639,21 @@ function hash(s) {
  * they're not reported immediately; instead we return a function which
  * will throw that error. In this way parse errors are produced lazily
  * just like evaluation errors.
+ * Security notice: these strings come from the URL query string, which is
+ * an untrusted source -- imagine if the string were 'new XMLHttpRequest().put()'.
+ * We're going to restrict the string from accessing 'this' nor any top-level
+ * symbols other than a whitelist. https://stackoverflow.com/a/69750236
  */
 function make_fn(expr) {
+  const whitelist = ['Math', 'Array', 'String', 'JSON']; // Warning: not 'Function'
+  let scope = {};
+  for (let obj = window; obj; obj = Object.getPrototypeOf(obj)) {
+    Object.getOwnPropertyNames(obj).forEach(name => scope[name] = undefined);
+  }
+  whitelist.forEach(name => scope[name] = window[name]);
   try {
     const fn = Function(
+      "scope",
       "log",
       "message",
       "tags",
@@ -1653,10 +1664,11 @@ function make_fn(expr) {
       "id",
       "filename",
       "json",
-      "return " + expr
-    );
+      "with (scope) return " + expr
+    ).bind({});
     return (m) =>
       fn(
+        scope,
         m.log,
         m.message,
         m.tags,

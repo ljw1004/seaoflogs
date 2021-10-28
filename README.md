@@ -40,7 +40,7 @@ https://user-images.githubusercontent.com/3316258/139136158-6f4049be-d653-4bce-a
 
 ## What kind of logs can be parsed
 
-"Sea of logs" aims to be relaxed about what it can accept, including at least LSP traces. Here are examples of three logs that can all be parsed. All three logs (VSCode extension, LSP trace and backend) come from the same session -- see that `id` "53906" is shared by different logs.
+"Sea of logs" aims to be relaxed about what it can accept, including at least LSP traces. Here are examples of three logs that can all be parsed. Incidentally, all three logs (VSCode extension, LSP trace and backend) come from the same session -- see that `id` "53906" is shared by different logs.
 ```
 ==> lsp.txt <==
 [Trace - 9:43:06 PM] Sending request 'initialize - (53906)'.
@@ -80,8 +80,6 @@ Parsing is still a work in progress. If you have a reasonable log format that ca
 
 **Local install**. You can download the "seaoflogs/index.html" file for when you want to use the tool locally. It's entirely standalone and doesn't access the network.
 
-> WARNING: a sea-of-logs bookmark has the form `url?query=<executable_javascript>`. In other words, sea-of-logs will execute the query part of an address.
-
 **Self-contained**. You can package up a single self-contained html file that combines both the sea-of-logs tool and one or more logfiles. Indeed the demos on this page are all self-contained! You might keep that self-contained file on your hard disk, or you might place it on web-page (e.g. linked from an issue-tracker on github). *If you share a self-contained bookmark with colleagues, they'll get both the content of the logs and your filters on it. Note that LSP traces usually contain the source code that the user was editing: only share self-contained files if you're allowed to share the user's source code.*
 ```
 # Make a self-contained html file by concatenating
@@ -99,9 +97,9 @@ $ tail -n +1 ~/logs/*  >> mylog.html
 
 *Scenario: my customer sent me a logfile that I don't trust. I want to visualize it but me sure it won't harm me.* I guess you benefit from sea-of-logs already running in the browser sandbox. You could try audit the code to see that logfiles are only ever loaded as data, never executed - but this is html so I suppose it's hard to be sure there aren't sneaky loopholes.
 
-*Scenario: someome sent me a malicious sea-of-logs bookmark. Can I click it?* Sea-of-logs bookmarks have the form `<url>?query=<executable_code>`. You can see for yourself by sticking `text: alert('oops')` and your browser tab will be alert-bombed. If the malicious bookmark directs you to an external website, it's got exactly the same risk as you already have from navigating to external websites. If the bookmark directs you to a file:// url on your hard disk, then the malicious code will executed within the context of your locally downloaded sea-of-logs file. I don't know what risks this exposes. If you don't trust someone, just get raw logs from them.
+*Scenario: someome sent me a malicious sea-of-logs bookmark. Can I click it?* Sea-of-logs bookmarks have the form `<url>?query=<executable_code>`, and the executable code is executed in the sea-of-logs page. Now if their bookmark takes you to an external site then the risk is no different from clicking on any random link to any random site, which we do all the time. If the bookmark directs you to a file:// url on your hard disk, and that file is seaoflogs.html, then the attacker's query string will be executed in the context of a local file on your hard disk. I don't know what protection browsers have against this. In addition to whatever protections the browser has, sea-of-logs provides its own secondary sandbox for that query-string, but I'm sure there are loopholes.
 
-*Scenario: someone uploaded a malicious self-contained file. Can I click it?* If they uploaded a self-contained sea-of-logs then they could have added malicious code, and you'd trust this just the same as trusting any random website.
+*Scenario: someone uploaded a malicious self-contained file. Can I click it?* If they uploaded a self-contained sea-of-logs then they could have added malicious code, and you'd trust this just the same as trusting any random website. If they ask you to download the file, it's the same as downloading any random html from the internet and opening it locally.
 
 
 ## Contributing
