@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html>
-<!-- The part of this file up to the closing </html> tag is (c) Lucian Wischik -->
 <head>
   <title>Sea of logs</title>
   <style type="text/css">
@@ -195,7 +194,10 @@
  * It is initially empty; it is only ever appended, upon window.onload and clicking the
  * "load" button.
  */
- let global_messages = [];
+let global_messages = [];
+
+/** a count of how many messages are in each named log. */
+let global_log_counts = {};
 
 /** global autocomplete dictionary, constructed by control_handler after re-rendering
  * current messages. It is a map {member_name -> {hint:string, nested:dictionary}}
@@ -251,6 +253,7 @@ document.addEventListener("scroll", () => render_missing_backgrounds());
  */
 function window_load_handler(event) {
   global_messages = [];
+  global_log_counts = {};
 
   // The addendum is whatever was appended to the end of this source file, after the final <!--
   // Even though we wrote the final <!-- after the </html>, Chrome actually promotes that
@@ -273,6 +276,7 @@ function window_load_handler(event) {
     }
   }
   global_messages = global_messages.concat(parse_log(log, acc));
+  global_log_counts = tally_logs(global_messages);
   render_controls();
   document.getElementById(
     "loading"
@@ -295,8 +299,10 @@ function load_button_handler(event) {
       const log = logname_from_filepath(file.name);
       const lines = reader.result.split(/\r?\n/);
       global_messages = global_messages.concat(parse_log(log, lines));
+      global_log_counts = tally_logs(global_messages);
       render_controls();
-      document.getElementById("logs").style.display = "block";
+      const params = new URLSearchParams(window.location.search);
+      write_controls(params);
       control_handler(event);
     },
     false
@@ -409,17 +415,16 @@ function control_handler(event) {
     const color = params.has("color") ? params.get("color") : defaults.color;
     const filter_fn = make_fn(filter || "true");
     const filter2_fn = (m) => {
+      if (!filter_fn(m)) return false;
       const key = `log_${m.log}`;
-      const def = m.log == "server" ? defaults.log_server : defaults.log;
-      const value = params.has(key) ? params.get(key) : def;
-      if (value.startsWith("hide_")) return false;
-      return filter_fn(m);
+      return (params.has(key)) ? !params.get(key).startsWith("hide_")
+        : global_log_counts[m.log] < defaults.threshold_for_visible;
     };
     const align_fn = (m) => {
       const key = `log_${m.log}`;
-      const def = m.log == "server" ? defaults.log_server : defaults.log;
-      const value = params.has(key) ? params.get(key) : def;
-      return value.replace(/^hide_/, "");
+      return (params.has(key)) ? params.get(key).replace(/^hide_/, "")
+        : m.log == "server" ? defaults.align_for_server_log
+        : defaults.align_for_other_logs;
     };
     const text_fn = make_fn(text);
     const id_fn = make_fn(id);
@@ -943,8 +948,10 @@ function read_controls() {
     const value = checkboxElement.checked
       ? alignElement.value
       : "hide_" + alignElement.value; // e.g. "left" or "hide_center"
-    const def = key == "log_server" ? defaults.log_server : defaults.log;
-    if (value == def) continue;
+    const log = key.replace(/^log_/, "");
+    const def_checked = (global_log_counts[log] < defaults.threshold_for_visible) ? "" : "hide_";
+    const def_align = (log == 'server') ? defaults.align_for_server_log : defaults.align_for_other_logs;
+    if (value == `${def_checked}${def_align}`) continue;
     params.set(key, value);
   }
   return params;
@@ -967,37 +974,30 @@ function write_controls(params) {
     const checkboxElement = div.getElementsByTagName("input")[0];
     const alignElement = div.getElementsByTagName("select")[0];
     const key = div.getAttribute("id"); // e.g. "log_client"
-    const def = key == "log_server" ? defaults.log_server : defaults.log;
-    const value = params.has(key) ? params.get(key) : def;
-    const checked = !value.startsWith("hide_");
-    let align = value.startsWith("hide_") ? value.substring(5) : value;
-    if (!["left", "center", "right"].includes(align)) align = "left";
-    checkboxElement.checked = checked;
-    alignElement.value = align;
+    const log = key.replace(/^log_/, "");
+    if (params.has(key)) {
+      const value = params.get(key);
+      checkboxElement.checked = !value.startsWith('hide_');
+      alignElement.value = value.replace(/^hide_/, "");
+    } else {
+      checkboxElement.checked = global_log_counts[log] < defaults.threshold_for_visible;
+      alignElement.value = (log == "server") ? defaults.align_for_server_log : defaults.align_for_other_logs;
+    }
   }
 }
 
-/** Adds a new log dropdown. 'checked' says whether it will be initially checked.
- * 'align' is left/right/center. 'count' is a number to show to its right.
+/** Adds a new log dropdown. 'count' is a number to show to its right.
  */
-function append_log_control(log, checked, align, count) {
+function append_log_control(log, count) {
   const name = log == null ? "null" : log;
   let html = "";
   html += `<td class="td_logleft" >`;
-  html += `<input id='logcheck_${name}' onchange='control_handler(event)' type='checkbox' ${
-    checked ? "checked" : ""
-  }/>`;
+  html += `<input id='logcheck_${name}' onchange='control_handler(event)' type='checkbox' checked/>`;
   html += `<label for='logcheck_${name}'>${name}</label> <span class='logcount'>${count.toLocaleString()}</span></td>`;
   html += `<td class="td_logright"><select id='logalign_${name}' onchange='control_handler(event)'>`;
-  html += `<option value="left" ${
-    align == "left" ? "selected" : ""
-  }>L</option>`;
-  html += `<option value="center" ${
-    align == "center" ? "selected" : ""
-  }>C</option>`;
-  html += `<option value="right" ${
-    align == "right" ? "selected" : ""
-  }>R</option>`;
+  html += `<option value="left" selected>L</option>`;
+  html += `<option value="center">C</option>`;
+  html += `<option value="right">R</option>`;
   html += `</select></td>`;
   const table = document.getElementById("logs_table");
   const tr = table.insertRow(table.rows.length);
@@ -1015,26 +1015,17 @@ function append_log_control(log, checked, align, count) {
  */
 function render_controls() {
   // What log controls do we want to show?
-  let logs = {}; // map from logname to number of messages in that log
-  let logs_order = []; // ordered list of lognames
+  let logs = []; // ordered list of lognames
+  let seen = new Set();
   for (const m of global_messages) {
-    if (logs[m.log] == null) {
-      logs[m.log] = 0;
-      logs_order.push(m.log);
-    }
-    logs[m.log] += 1;
+    if (!seen.has(m.log)) {logs.push(m.log); seen.add(m.log);}
   }
   // Add in whichever ones aren't already shown
-  for (const log of logs_order) {
+  for (const log of logs) {
     if (document.getElementById(`logcheck_${log}`) != null) continue;
-    append_log_control(
-      log,
-      logs[log] < 2000,
-      log == "server" ? "right" : "left",
-      logs[log]
-    );
+    append_log_control(log, global_log_counts[log]);
   }
-  document.getElementById('logs').style.display = logs_order.length > 0 ? 'block' : 'none';
+  document.getElementById('logs').style.display = logs.length > 0 ? 'block' : 'none';
   // What time controls do we want to show?
   let extremes = {};
   let earliest = null;
@@ -1062,7 +1053,7 @@ function render_controls() {
   let html_end = `<option></option><option value='${s}'>${s}</option>`;
   html_end += `<option value='+5s'>+5s</option>`;
   html_end += `<option value='+10 minutes'>+10 minutes</option>`;
-  for (const log of logs_order) {
+  for (const log of logs) {
     if (extremes[log].earliest != null) {
       const s = formatTime(extremes[log].earliest, 'full');
       html_start += `<option value='${s}'>${s} - ${log}</option>`;
@@ -1094,9 +1085,21 @@ const defaults = {
   id: "id",
   color: "title",
   details: "message",
-  log: "left",
-  log_server: "right",
+  align_for_other_logs: "left",
+  align_for_server_log: "right",
+  threshold_for_visible: 2000,
 };
+
+/** Given a list of messages, returns {logname->count}.
+ */
+function tally_logs(messages) {
+  let counts = {}; // map from logname to number of messages in that log
+  for (const m of messages) {
+    if (counts[m.log] == null) counts[m.log] = 0;
+    counts[m.log] += 1;
+  }
+  return counts;
+}
 
 /** Returns a filtered+sorted list of messages to display.
  * source:message[]' is a list of messages.
@@ -1268,7 +1271,7 @@ function parse_message(log, prev_time, lines) {
         if (match_id[1] == "") {
           id = tag;
         } else {
-          tag[match_id[1]] = tag;
+          tags[match_id[1]] = tag;
           id ||= tag;
         }
       } else {
@@ -1820,7 +1823,7 @@ function hsl(h, s, l) {
 </body>
 </html>
 <!--
-==> /Users/ljw/Downloads/rust_analyzer.txt <==
+==> rust_analyzer.txt <==
 INFO [10/26/2021, 9:43:06 PM]: Extension version: 0.2.792
 INFO [10/26/2021, 9:43:06 PM]: Using configuration {
   cargoRunner: null,
@@ -1953,7 +1956,7 @@ DEBUG [10/26/2021, 9:43:06 PM]: /Users/ljw/Library/Application Support/Code/User
   stderr: ''
 }
 
-==> /Users/ljw/Downloads/rust_analyzer_lsp.txt <==
+==> rust_analyzer_lsp.txt <==
 [Trace - 9:43:06 PM] Sending request 'initialize - (0)'.
 Params: {
     "processId": 21953,
