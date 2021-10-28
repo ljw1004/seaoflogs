@@ -30,6 +30,8 @@
       height: 100%;
       background-color: lightgray;
       vertical-align: top;
+      overflow: hidden;
+      white-space: nowrap;
     }
 
     #right {
@@ -173,7 +175,9 @@
       background-color: #f0f0FF;
     }
   </style>
-  <script type="text/javascript">
+  <script>
+'use strict';
+
 // ===================================================================
 // ===================================================================
 // ===================================================================
@@ -191,27 +195,27 @@
  * It is initially empty; it is only ever appended, upon window.onload and clicking the
  * "load" button.
  */
- var global_messages = [];
+ let global_messages = [];
 
 /** global autocomplete dictionary, constructed by control_handler after re-rendering
  * current messages. It is a map {member_name -> {hint:string, nested:dictionary}}
  * We treat an array [1,2,3] as a dictionary with a single member {ELEMENT -> [element_types]}
  */
-var global_current_dictionary = {};
+let global_current_dictionary = {};
 
 /** this is a timer to debounce edits and resizes, used by control_handler
  */
-var global_debounce_timeout = null;
+let global_debounce_timeout = null;
 
 /** resize_expected_height is the last height to have been computed for the messages div;
  * control_handler detects upon scroll that if the current height is different, then all
  * svg lines will have to be recomputed
  */
-var global_resize_expected_height = null;
+let global_resize_expected_height = null;
 
 /** If a popup is up, this is its index (into the unfiltered/unsorted global_messages)
  */
-var global_popup_message_index = null;
+let global_popup_message_index = null;
 
 // ===================================================================
 // ===================================================================
@@ -254,9 +258,8 @@ function window_load_handler(event) {
   const addendum = [...document.getElementsByTagName("body")[0].childNodes]
     .filter((c) => c.nodeType == Node.COMMENT_NODE)
     .reverse()[0].data;
-  var acc = [];
-  var log = "(default)";
-  var has_named_logs = false;
+  let acc = [];
+  let log = "(default)";
   const lines = addendum.split(/\r?\n/);
   for (const line of lines) {
     const match = line.match(/^==> (.*) <==$/);
@@ -264,7 +267,6 @@ function window_load_handler(event) {
       global_messages = global_messages.concat(parse_log(log, acc));
       log = logname_from_filepath(match[1]);
       acc = [];
-      has_named_logs = true;
     } else {
       acc.push(line);
       continue;
@@ -272,9 +274,6 @@ function window_load_handler(event) {
   }
   global_messages = global_messages.concat(parse_log(log, acc));
   render_controls();
-  document.getElementById("logs").style.display = has_named_logs
-    ? "block"
-    : "none";
   document.getElementById(
     "loading"
   ).innerText = `Loading ${global_messages.length} messages...`;
@@ -331,8 +330,8 @@ function control_handler(event) {
     displayed_message_length == 0
       ? global_messages.length
       : displayed_message_length;
-  var timeout = message_burden > 10000 ? 500 : message_burden > 2000 ? 150 : 50;
-  var update_url = true;
+  let timeout = message_burden > 10000 ? 500 : message_burden > 2000 ? 150 : 50;
+  let update_url = true;
 
   if (event.type == "load") {
     // upon load, we only have a short timeout to allow the screen to render;
@@ -425,7 +424,7 @@ function control_handler(event) {
     const text_fn = make_fn(text);
     const id_fn = make_fn(id);
     const color_fn = make_fn(color);
-    var start_time = null,
+    let start_time = null,
       end_time = null,
       time_exn = null;
     if (start.charAt(0) == "-") {
@@ -478,7 +477,7 @@ function control_handler(event) {
     if (mindex == -1) render_popup(null);
     else render_popup(document.getElementById("messages").children[mindex]);
     // set some global values
-    for (var m of messages) {
+    for (let m of messages) {
       delete m.gindex;
       delete m.filter;
     }
@@ -511,7 +510,7 @@ function time_handler(event, time) {
   render_popup(null);
   const menu = document.getElementById("menu");
   menu.style.display = "block";
-  var html = `<select id='time_menu' multiple size=2>`;
+  let html = `<select id='time_menu' multiple size=2>`;
   html += `<option value='start'>set start</option>`;
   html += `<option value='end'>set end</option>`;
   html += `</select>`;
@@ -540,13 +539,15 @@ function time_handler(event, time) {
  * We often end up getting both Click and Focus e.g. when we gain focus from elsewhere. No matter.
  */
 function autocomplete_handler(event) {
+  const menuElement = document.getElementById("menu");
+
   if (event.type == "keyup" && event.key == "Escape") {
     // this handler is invoked to show autocomplete in response to keystrokes,
     // but if the keystroke was an escape then we won't!
     return;
   }
   // This is the entire text leading up to the caret:
-  var text = event.target.value.substring(0, event.target.selectionStart);
+  let text = event.target.value.substring(0, event.target.selectionStart);
   // We won't be fancy about nesting, but we will track
   // whether there's an unbalanced number of string quote delimeters
   if (
@@ -565,19 +566,19 @@ function autocomplete_handler(event) {
   text = match ? match[1] : "";
   const identifiers = text.split(".");
   // Walk the identifier chain to find autocomplete up to the second-last identifier in the chain.
-  var current = global_current_dictionary;
-  for (var i = 0; current != null && i < identifiers.length - 1; i++) {
+  let current = global_current_dictionary;
+  for (let i = 0; current != null && i < identifiers.length - 1; i++) {
     current = current[identifiers[i]]?.nested;
   }
   if (current == null) {
-    menu.style.display = "none";
+    menuElement.style.display = "none";
     return;
   }
   // The last identifier in the chain is the one that the caret is currently on,
   // e.g. for "foo.|" the last identifier will be the empty string, and for "foo|" it will be "foo".
   // We'll use it as a filter to only show some options.
-  var filter = identifiers.pop();
-  var html = `<table id='autocomplete'>`;
+  let filter = identifiers.pop();
+  let html = `<table id='autocomplete'>`;
   for (const [k, v] of Object.entries(current)) {
     if (k.startsWith(filter)) {
       html += `<tr><td class="autocomplete_name">${
@@ -587,12 +588,11 @@ function autocomplete_handler(event) {
   }
   html += `</table>`;
   // And render it!
-  const menu = document.getElementById("menu");
-  menu.innerHTML = html;
-  menu.style.display = "block";
-  const { x, y } = boundPopup(menu, event.target, "left");
-  menu.style.top = `${y}px`;
-  menu.style.left = `${x + event.target.offsetWidth}px`;
+  menuElement.innerHTML = html;
+  menuElement.style.display = "block";
+  const { x, y } = boundPopup(menuElement, event.target, "left");
+  menuElement.style.top = `${y}px`;
+  menuElement.style.left = `${x + event.target.offsetWidth}px`;
 }
 
 /** Called by the "body" onclick handler, for when the
@@ -601,8 +601,8 @@ function autocomplete_handler(event) {
  * when the user presses escape to dismiss popups.
  */
 function hide_popups_handler(event) {
-  var dismiss_menu = false;
-  var dismiss_popup = false;
+  let dismiss_menu = false;
+  let dismiss_popup = false;
   if (event.type == "keydown" && event.key == "Escape") {
     // will dismiss them both
     dismiss_menu = true;
@@ -619,7 +619,7 @@ function hide_popups_handler(event) {
       dismiss_menu = false;
     }
     // the details-popup is more sticky: clicking in the #left panel won't dismiss it
-    var parent = event.target;
+    let parent = event.target;
     while (parent != null && parent.id != "left") parent = parent.offsetParent;
     dismiss_popup = parent == null;
   }
@@ -647,11 +647,11 @@ function boundPopup(popup, element, align) {
   const rWindow = { right: window.innerWidth, bottom: window.innerHeight };
   // popup will be offset to the left of right-column, or offset to right of left-column
   // but clipped within bounds
-  var x = align == "right" ? rElement.right - rPopup.width : rElement.left;
+  let x = align == "right" ? rElement.right - rPopup.width : rElement.left;
   if (x + rPopup.width > rWindow.right) x = rWindow.right - rPopup.width;
   if (x < 0) x = 0;
   // popup will go underneath element if it fits, else above if it fits, else underneath
-  var y =
+  let y =
     rElement.bottom + rPopup.height < rWindow.bottom
       ? rElement.bottom
       : rElement.top - rPopup.height >= 0
@@ -672,9 +672,9 @@ function render_error(element, exn) {
  * Returns {text_exn, id_exn, color_exn} for any errors encountered
  */
 function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
-  var text_exn = null;
-  var id_exn = null;
-  var color_exn = null;
+  let text_exn = null;
+  let id_exn = null;
+  let color_exn = null;
 
   // This is where we'll render to
   const messagesElement = document.getElementById("messages");
@@ -686,14 +686,14 @@ function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
   const text_error = `<span class='error'>error</span>`;
 
   // Some derived values for layout
-  var gaps = []; // gap[i] is the extra padding above message i, where 0=no padding and 1=1 line of padding
-  var pos = []; // pos[i] = {left, top, width, height, cx, cy} for message i
-  var idmap = {}; // a map {id -> [i1, i2]}, but only listing ones that pass the filter
+  let gaps = []; // gap[i] is the extra padding above message i, where 0=no padding and 1=1 line of padding
+  let pos = []; // pos[i] = {left, top, width, height, cx, cy} for message i
+  let idmap = {}; // a map {id -> [i1, i2]}, but only listing ones that pass the filter
 
   // Here we compute 'gaps' derived values, the extra padding above messages.
   // The idea is that messages-with-time go first in the list. If at least three messages
   // have times, then we'll set up the 'gap' array to scale their positions.
-  var time_count = messages.findIndex((m) => m.time == null);
+  let time_count = messages.findIndex((m) => m.time == null);
   time_count = time_count == -1 ? messages.length : time_count;
   if (time_count >= 3) {
     const earliest_time = messages[0].time;
@@ -705,7 +705,7 @@ function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
     const yrange = time_count * 4; // 4N
     const timerange = latest_time.getTime() - earliest_time.getTime();
     gaps[0] = 0;
-    for (var i = 1; i < time_count; i++) {
+    for (let i = 1; i < time_count; i++) {
       const prev_natural_y =
         ((messages[i - 1].time.getTime() - earliest_time.getTime()) /
           timerange) *
@@ -713,35 +713,35 @@ function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
       const natural_y =
         ((messages[i].time.getTime() - earliest_time.getTime()) / timerange) *
         yrange;
-      var separation = natural_y - prev_natural_y;
+      let separation = natural_y - prev_natural_y;
       separation = Math.max(Math.min(separation, 5), 1);
       gaps[i] = separation - 1;
     }
   }
   // Let's place a gap of 4 between messages-with-time and those without,
   // and then all messages-without-time will be adjacent to each other.
-  for (var i = time_count; i < messages.length; i++) {
+  for (let i = time_count; i < messages.length; i++) {
     gaps[i] = i == time_count && i != 0 ? 4 : 0;
   }
   // If every single element was spaced out, we might as well compress them.
   const mingap = Math.min(...gaps.slice(1, time_count - 1));
-  for (var i = 1; i < time_count; i++) {
+  for (let i = 1; i < time_count; i++) {
     gaps[i] -= mingap;
   }
 
   // Render phase 1: this inserts html into messagesElement, and computes pos[] and idmap[]
-  var html = "";
-  for (var i = 0; i < messages.length; i++) {
+  let html = "";
+  for (let i = 0; i < messages.length; i++) {
     const m = messages[i];
     const align = align_fn(m);
-    var text;
+    let text;
     try {
       text = esc(text_fn(m));
     } catch (e) {
       text_exn ||= e;
       text = text_error;
     }
-    var id;
+    let id;
     try {
       id = id_fn(m);
       id = id == null ? null : String(id);
@@ -750,7 +750,7 @@ function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
       id = id_error;
       color = color_error;
     }
-    var color;
+    let color;
     try {
       color = hsl((hash(String(color_fn(m))) % 12) / 12.0, 0.5, 0.9);
     } catch (e) {
@@ -765,15 +765,15 @@ function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
       idmap[id].push(i);
     }
     // produce the html for this message
-    var time = "";
+    let time = "";
     if (m.time != null) {
-      var time = formatTime(m.time);
+      time = formatTime(m.time);
       time = `<span class='messagetime'>${
         align == "right" ? "&nbsp;" : ""
       }${time}${align == "right" ? "" : "&nbsp;"}</span>`;
     }
-    var time_right = align == "right" ? time : "";
-    var time_left = align == "right" ? "" : time;
+    let time_right = align == "right" ? time : "";
+    let time_left = align == "right" ? "" : time;
     const gap = gaps[i] == 0 ? "" : `margin-top: ${gaps[i] * 3}ex;`;
     const s = `<div class="message" style='text-align: ${align}; ${gap}' data-color='${color}'><span class="messageall">${time_left}<span class="messagetext">${text}</span>${time_right}</span></div>`;
     html += s;
@@ -782,7 +782,7 @@ function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
 
   // Render phase 2: uses the message elements that have been created to obtain
   // layout information, set up handlers on them, and completes pos[]
-  for (var i = 0; i < messages.length; i++) {
+  for (let i = 0; i < messages.length; i++) {
     const element = messagesElement.children[i];
     const message = messages[i];
     const gindex = message.gindex;
@@ -819,16 +819,16 @@ function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
   svgElement.setAttribute("height", height);
   svgElement.setAttribute("viewBox", `0 0 400 ${height}`);
   // Now assemble the content of the svg, i.e. the id lines
-  var svg = "";
+  let svg = "";
   for (const [id, indexes] of Object.entries(idmap)) {
     if (indexes.length <= 1) continue;
     const color = hsl((hash(id) % 12) / 12.0, 0.9, 0.4);
-    for (var vi = 0; vi < indexes.length - 1; vi++) {
+    for (let vi = 0; vi < indexes.length - 1; vi++) {
       const m1 = indexes[vi];
       const m2 = indexes[vi + 1];
       svg += `<line x1='${pos[m1].cx}' y1='${pos[m1].cy}' x2='${pos[m2].cx}' y2='${pos[m2].cy}' stroke='${color}'/>`;
     }
-    for (var vi = 0; vi < indexes.length; vi++) {
+    for (let vi = 0; vi < indexes.length; vi++) {
       const m1 = indexes[vi];
       svg += `<ellipse cx='${pos[m1].cx}' cy='${pos[m1].cy}' rx='1' ry='2' fill='${color}'/>`;
     }
@@ -850,15 +850,15 @@ function render_missing_backgrounds() {
   const container = document.getElementById("messages");
   // let's bisect to find the first child visible in the viewport
   // i.e. the first element whose bottom is > 0
-  var ifirst = 0;
-  var ilast = container.childElementCount;
+  let ifirst = 0;
+  let ilast = container.childElementCount;
   while (ilast - ifirst > 1) {
     const i = Math.floor((ifirst + ilast) / 2);
     const r = container.children[i].getBoundingClientRect();
     if (r.bottom > 0) ilast = i;
     else if (r.bottom <= 0) ifirst = i;
   }
-  for (var i = ifirst; i < container.childElementCount; i++) {
+  for (let i = ifirst; i < container.childElementCount; i++) {
     const element = container.children[i];
     const r = element.getBoundingClientRect();
     if (r.top > container.offsetHeight) return;
@@ -866,7 +866,7 @@ function render_missing_backgrounds() {
     if (color == null) continue;
     element.removeAttribute("data-color", null);
     const span = element.children[0];
-    html = `<div class='background' style='position:relative; width:100%; height:0; margin:0; top:${element.offsetTop}px; text-align:${element.style.textAlign};'><span style='display:inline-block; width:${span.offsetWidth}px; height:${span.offsetHeight}px; background-color:${color};'></span></div>`;
+    const html = `<div class='background' style='position:relative; width:100%; height:0; margin:0; top:${element.offsetTop}px; text-align:${element.style.textAlign};'><span style='display:inline-block; width:${span.offsetWidth}px; height:${span.offsetHeight}px; background-color:${color};'></span></div>`;
     document
       .getElementById("backgrounds")
       .insertAdjacentHTML("beforeend", html);
@@ -888,8 +888,8 @@ function render_popup(messageDiv) {
   // recompute the new popup value
   const params = new URLSearchParams(window.location.search);
   const details_fn = make_fn(params.get("details") || "message");
-  var details_exn = null;
-  var details;
+  let details_exn = null;
+  let details;
   try {
     details = details_fn(global_messages[global_popup_message_index]);
   } catch (e) {
@@ -902,7 +902,7 @@ function render_popup(messageDiv) {
   else
     popup.innerHTML = `<span class="error">${esc(String(details_exn))}</span>`;
   popup.style.display = "block";
-  var { x, y } = boundPopup(
+  let { x, y } = boundPopup(
     popup,
     messageDiv.getElementsByClassName("messagetext")[0],
     messageDiv.style.textAlign
@@ -921,7 +921,7 @@ function render_popup(messageDiv) {
  * log_<name>_checked:bool, log_<name>_align:left|right|center, filter,start,end,text,id,color,details:string
  */
 function read_controls() {
-  var params = new URLSearchParams();
+  let params = new URLSearchParams();
   const filter = document.getElementById("input_filter").value;
   const start = document.getElementById("input_start").value;
   const end = document.getElementById("input_end").value;
@@ -970,7 +970,7 @@ function write_controls(params) {
     const def = key == "log_server" ? defaults.log_server : defaults.log;
     const value = params.has(key) ? params.get(key) : def;
     const checked = !value.startsWith("hide_");
-    var align = value.startsWith("hide_") ? value.substring(5) : value;
+    let align = value.startsWith("hide_") ? value.substring(5) : value;
     if (!["left", "center", "right"].includes(align)) align = "left";
     checkboxElement.checked = checked;
     alignElement.value = align;
@@ -982,7 +982,7 @@ function write_controls(params) {
  */
 function append_log_control(log, checked, align, count) {
   const name = log == null ? "null" : log;
-  var html = "";
+  let html = "";
   html += `<td class="td_logleft" >`;
   html += `<input id='logcheck_${name}' onchange='control_handler(event)' type='checkbox' ${
     checked ? "checked" : ""
@@ -1015,8 +1015,8 @@ function append_log_control(log, checked, align, count) {
  */
 function render_controls() {
   // What log controls do we want to show?
-  var logs = {}; // map from logname to number of messages in that log
-  var logs_order = []; // ordered list of lognames
+  let logs = {}; // map from logname to number of messages in that log
+  let logs_order = []; // ordered list of lognames
   for (const m of global_messages) {
     if (logs[m.log] == null) {
       logs[m.log] = 0;
@@ -1034,10 +1034,11 @@ function render_controls() {
       logs[log]
     );
   }
+  document.getElementById('logs').style.display = logs_order.length > 0 ? 'block' : 'none';
   // What time controls do we want to show?
-  var extremes = {};
-  var earliest = null;
-  var latest = null;
+  let extremes = {};
+  let earliest = null;
+  let latest = null;
   for (const m of global_messages) {
     if (extremes[m.log] == null)
       extremes[m.log] = { earliest: null, latest: null };
@@ -1054,10 +1055,11 @@ function render_controls() {
     return;
   }
   document.getElementById("time").style.display = "block";
-  var s = formatTime(earliest, "full");
-  var html_start = `<option></option><option value='${s}'>${s}</option>`;
-  var s = formatTime(latest, "full");
-  var html_end = `<option></option><option value='${s}'>${s}</option>`;
+  let s;
+  s = formatTime(earliest, "full");
+  let html_start = `<option></option><option value='${s}'>${s}</option>`;
+  s = formatTime(latest, "full");
+  let html_end = `<option></option><option value='${s}'>${s}</option>`;
   html_end += `<option value='+5s'>+5s</option>`;
   html_end += `<option value='+10 minutes'>+10 minutes</option>`;
   for (const log of logs_order) {
@@ -1106,15 +1108,15 @@ const defaults = {
  * the filter function failed on them.
  */
 function filter_and_sort_messages(source, filter_fn, start, end) {
-  var filter_exn = null;
+  let filter_exn = null;
 
   // We'll stable-sort all messages by time, but putting unstamped messages at the end.
   // We also add a property 'gindex' to the messages in our local 'messages' array,
   // for the index into the global messages list, and an optional property
   // 'filter' which has value null for everything that couldn't be filtered.
-  var messages = global_messages
+  let messages = global_messages
     .map((m, gindex) => {
-      var filter;
+      let filter;
       try {
         filter = filter_fn(m);
       } catch (e) {
@@ -1170,8 +1172,8 @@ function parse_message(log, prev_time, lines) {
   // A tag is something enclosed with square brackets, with optional whitespace after the closing square bracket,
   // that doesn't itself contain any brackets or braces or parentheses.
   // We strip leading and trailing whitespace from tags.
-  var s = lines[0];
-  var tags = [];
+  let s = lines[0];
+  let tags = [];
   {
     const match = s.match(/^([^\[ ]*) /);
     if (match) {
@@ -1191,7 +1193,7 @@ function parse_message(log, prev_time, lines) {
   const line = s;
 
   // The optional "title" is a series of alphanumerics without punctuation
-  var title = null;
+  let title = null;
   {
     const match = s.match(/^ *([A-Za-z0-9_][^:'"\{/\[\()]*)([:'"\{\[/\()]) */);
     if (match) {
@@ -1209,10 +1211,10 @@ function parse_message(log, prev_time, lines) {
     }
   }
 
-  var body = s;
+  let body = s;
 
   // Can we extract any filenames out of the rest of the line?
-  var filename = null;
+  let filename = null;
   {
     const match = (" " + s).match(/([ '"])(\/[0-9A-Za-z/_\-.]*)/);
     if (match) {
@@ -1221,10 +1223,10 @@ function parse_message(log, prev_time, lines) {
   }
 
   // Can we extract json from the rest of the line plus all subsequent lines?
-  var json = null;
+  let json = null;
   {
     // attempt 1: start json at the first { or [ we see on the first line, plus all subsequent lines
-    var ji = s.indexOf("{");
+    let ji = s.indexOf("{");
     if (ji == -1) ji = s.indexOf('[');
     if (ji != -1) json = parse_json_relaxed(s.slice(ji) + "\n" + lines.slice(1).join("\n"));
     // attempt 2: look only on subsequent lines
@@ -1237,10 +1239,10 @@ function parse_message(log, prev_time, lines) {
   // Note: we'll discard the year-and-date part of it entirely, so that if we're
   // mixing LSP logs (which lack year-and-date) with other logs (which have them)
   // then they'll still lign up.
-  var time = null;
-  var id = null;
-  var oldtags = tags;
-  var tags = { positional: [] };
+  let time = null;
+  let id = null;
+  let oldtags = tags;
+  tags = { positional: [] };
   const first_tag = oldtags.length == 0 ? null : oldtags[0];
   if (['INFO','DEBUG','ERROR'].includes(first_tag)) {
     tags['kind'] = first_tag;
@@ -1299,8 +1301,8 @@ function parse_message(log, prev_time, lines) {
       }
       // Some traces have json {jsonrpc:, id:, params|result|error: }
       // Others merely have the params/result/error
-      var root;
-      var kind;
+      let root;
+      let kind;
       if (json?.hasOwnProperty('jsonrpc')) {
         id = json.id;
         kind = id == null ? "notification" : json.result != null || json.error != null ? "response" : "request";
@@ -1312,7 +1314,7 @@ function parse_message(log, prev_time, lines) {
         root = json;
       }
       // ids generated by the server are in a different namespace from those generated by the client
-      var originate_by_server = log == "server" ? true : false;
+      let originate_by_server = log == "server" ? true : false;
       if (kind == "response") originate_by_server = !originate_by_server;
       if (originate_by_server && id != null) id = `s#${id}`;
       // cancelRequest notification is about this particular id
@@ -1366,9 +1368,9 @@ function parse_log(log, lines) {
   // A message is defined as starting on a line whose first character
   // is "[", followed by a series of non-blank lines which themselves
   // don't start with "[".
-  var messages = [];
-  var prev_time = null;
-  var acc = [];
+  let messages = [];
+  let prev_time = null;
+  let acc = [];
   for (const line of lines) {
     if (line_starts_message(line)) {
       const m = parse_message(log, prev_time, acc);
@@ -1409,12 +1411,12 @@ function parse_log(log, lines) {
  */
 function build_dictionary(messages) {
   // We'll first construct everything 'positively' from the members that are present
-  var dictionary = {};
+  let dictionary = {};
   if (messages.length == 0) return dictionary;
-  var add;
+  let add;
   add = (dict, prop, value, allowRecurse) => {
     if (dict[prop] == null) dict[prop] = { hint: new Set(), nested: null };
-    var type;
+    let type;
     if (value === null) type = "null";
     else if (value === "") type = "empty_string";
     else if (value instanceof Date) type = "Date";
@@ -1442,7 +1444,7 @@ function build_dictionary(messages) {
   }
 
   // Now sprinkly in 'undefined' for members that aren't always present
-  var undef;
+  let undef;
   undef = (dict, value) => {
     if (value == null || typeof value != "object") value = {};
     for (const [k, v] of Object.entries(dict)) {
@@ -1465,10 +1467,10 @@ function build_dictionary(messages) {
   }
 
   // Now combine all those 'primitive' hints into a hint, and provide extra hints for the top level
-  var hintify;
+  let hintify;
   hintify = (dict) => {
     for (const [k, v] of Object.entries(dict)) {
-      var types = [...v.hint];
+      let types = [...v.hint];
       if (v.nested != null) {
         if (v.nested.hasOwnProperty("ELEMENT")) {
           types.push("array");
@@ -1571,11 +1573,11 @@ function formatTime(time, style) {
     while (s.length < (n || 2)) s = "0" + s;
     return s;
   };
-  var hms = `${pad2(time.getUTCHours())}:${pad2(time.getUTCMinutes())}:${pad2(
+  let hms = `${pad2(time.getUTCHours())}:${pad2(time.getUTCMinutes())}:${pad2(
     time.getUTCSeconds()
   )}`;
   const plusDays = time.getUTCDate() - 1;
-  var ms = time.getUTCMilliseconds();
+  let ms = time.getUTCMilliseconds();
   if (style !== "full") return hms;
   if (ms != 0) hms += `.${pad2(ms, 3)}`;
   if (plusDays == 0) return hms;
@@ -1624,7 +1626,7 @@ function parseTime(time, relativeTo) {
 /** Given a string, produces a hash number
  */
 function hash(s) {
-  var hash = 0,
+  let hash = 0,
     i,
     chr;
   for (i = 0; i < s.length; i++) {
@@ -1639,10 +1641,21 @@ function hash(s) {
  * they're not reported immediately; instead we return a function which
  * will throw that error. In this way parse errors are produced lazily
  * just like evaluation errors.
+ * Security notice: these strings come from the URL query string, which is
+ * an untrusted source -- imagine if the string were 'new XMLHttpRequest().put()'.
+ * We're going to restrict the string from accessing 'this' nor any top-level
+ * symbols other than a whitelist. https://stackoverflow.com/a/69750236
  */
 function make_fn(expr) {
+  const whitelist = ['Math', 'Array', 'String', 'JSON']; // Warning: not 'Function'
+  let scope = {};
+  for (let obj = window; obj; obj = Object.getPrototypeOf(obj)) {
+    Object.getOwnPropertyNames(obj).forEach(name => scope[name] = undefined);
+  }
+  whitelist.forEach(name => scope[name] = window[name]);
   try {
     const fn = Function(
+      "scope",
       "log",
       "message",
       "tags",
@@ -1653,10 +1666,11 @@ function make_fn(expr) {
       "id",
       "filename",
       "json",
-      "return " + expr
-    );
+      "with (scope) return " + expr
+    ).bind({});
     return (m) =>
       fn(
+        scope,
         m.log,
         m.message,
         m.tags,
@@ -1679,7 +1693,7 @@ function make_fn(expr) {
  * returns an rgb string "#rrggbb" for that color.
  */
 function hsl(h, s, l) {
-  var r, g, b;
+  let r, g, b;
   if (s == 0) {
     r = g = b = l;
   } else {
@@ -1691,14 +1705,14 @@ function hsl(h, s, l) {
       else if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
       else return p;
     };
-    var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-    var p = 2 * l - q;
+    let q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    let p = 2 * l - q;
     r = f(p, q, h + 1 / 3);
     g = f(p, q, h);
     b = f(p, q, h - 1 / 3);
   }
   const x = (i) => {
-    var s = Math.round(i * 255).toString(16);
+    let s = Math.round(i * 255).toString(16);
     while (s.length < 2) s = "0" + s;
     if (s.length > 2) s = "FF";
     return s;
@@ -1806,7 +1820,6 @@ function hsl(h, s, l) {
 </body>
 </html>
 <!--
-==> /Users/ljw/Downloads/rust_analyzer.txt <==
 INFO [10/26/2021, 9:43:06 PM]: Extension version: 0.2.792
 INFO [10/26/2021, 9:43:06 PM]: Using configuration {
   cargoRunner: null,
@@ -1938,8 +1951,6 @@ DEBUG [10/26/2021, 9:43:06 PM]: /Users/ljw/Library/Application Support/Code/User
   stdout: 'rust-analyzer 1f47693e0 2021-10-25 stable\n',
   stderr: ''
 }
-
-==> /Users/ljw/Downloads/rust_analyzer_lsp.txt <==
 [Trace - 9:43:06 PM] Sending request 'initialize - (0)'.
 Params: {
     "processId": 21953,
