@@ -30,6 +30,8 @@
       height: 100%;
       background-color: lightgray;
       vertical-align: top;
+      overflow: hidden;
+      white-space: nowrap;
     }
 
     #right {
@@ -258,7 +260,6 @@ function window_load_handler(event) {
     .reverse()[0].data;
   let acc = [];
   let log = "(default)";
-  let has_named_logs = false;
   const lines = addendum.split(/\r?\n/);
   for (const line of lines) {
     const match = line.match(/^==> (.*) <==$/);
@@ -266,7 +267,6 @@ function window_load_handler(event) {
       global_messages = global_messages.concat(parse_log(log, acc));
       log = logname_from_filepath(match[1]);
       acc = [];
-      has_named_logs = true;
     } else {
       acc.push(line);
       continue;
@@ -274,9 +274,6 @@ function window_load_handler(event) {
   }
   global_messages = global_messages.concat(parse_log(log, acc));
   render_controls();
-  document.getElementById("logs").style.display = has_named_logs
-    ? "block"
-    : "none";
   document.getElementById(
     "loading"
   ).innerText = `Loading ${global_messages.length} messages...`;
@@ -770,7 +767,7 @@ function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
     // produce the html for this message
     let time = "";
     if (m.time != null) {
-      let time = formatTime(m.time);
+      time = formatTime(m.time);
       time = `<span class='messagetime'>${
         align == "right" ? "&nbsp;" : ""
       }${time}${align == "right" ? "" : "&nbsp;"}</span>`;
@@ -1037,6 +1034,7 @@ function render_controls() {
       logs[log]
     );
   }
+  document.getElementById('logs').style.display = logs_order.length > 0 ? 'block' : 'none';
   // What time controls do we want to show?
   let extremes = {};
   let earliest = null;
