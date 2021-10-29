@@ -33,6 +33,11 @@
       white-space: nowrap;
     }
 
+    #perf {
+      display: none;
+      font-size: small;
+    }
+
     #right {
       margin: 0;
       margin-left: 20%;
@@ -277,6 +282,7 @@ function window_load_handler(event) {
   }
   global_messages = global_messages.concat(parse_log(log, acc));
   global_log_counts = tally_logs(global_messages);
+  for (let i=0; i<global_messages.length; i++) global_messages[i].gindex=i;
   render_controls();
   document.getElementById(
     "loading"
@@ -300,6 +306,7 @@ function load_button_handler(event) {
       const lines = reader.result.split(/\r?\n/);
       global_messages = global_messages.concat(parse_log(log, lines));
       global_log_counts = tally_logs(global_messages);
+      for (let i=0; i<global_messages.length; i++) global_messages[i].gindex=i;
       render_controls();
       const params = new URLSearchParams(window.location.search);
       write_controls(params);
@@ -336,7 +343,7 @@ function control_handler(event) {
     displayed_message_length == 0
       ? global_messages.length
       : displayed_message_length;
-  let timeout = message_burden > 10000 ? 500 : message_burden > 2000 ? 150 : 50;
+  let timeout = message_burden > 10000 ? 1000 : message_burden > 3000 ? 250 : 50;
   let update_url = true;
 
   if (event.type == "load") {
@@ -405,33 +412,24 @@ function control_handler(event) {
   clearTimeout(global_debounce_timeout);
   global_debounce_timeout = setTimeout(() => {
     // figure out the controls
-    const filter = params.has("filter")
-      ? params.get("filter")
-      : defaults.filter;
+    const filter = params.has("filter") ? params.get("filter") : defaults.filter;
     const start = params.has("start") ? params.get("start") : defaults.start;
     const end = params.has("end") ? params.get("end") : defaults.end;
     const text = params.has("text") ? params.get("text") : defaults.text;
     const id = params.has("id") ? params.get("id") : defaults.id;
     const color = params.has("color") ? params.get("color") : defaults.color;
-    const filter_fn = make_fn(filter || "true");
-    const filter2_fn = (m) => {
-      if (!filter_fn(m)) return false;
-      const key = `log_${m.log}`;
-      return (params.has(key)) ? !params.get(key).startsWith("hide_")
-        : global_log_counts[m.log] < defaults.threshold_for_visible;
-    };
-    const align_fn = (m) => {
-      const key = `log_${m.log}`;
-      return (params.has(key)) ? params.get(key).replace(/^hide_/, "")
-        : m.log == "server" ? defaults.align_for_server_log
-        : defaults.align_for_other_logs;
-    };
-    const text_fn = make_fn(text);
-    const id_fn = make_fn(id);
-    const color_fn = make_fn(color);
-    let start_time = null,
-      end_time = null,
-      time_exn = null;
+    let log_filter={}, log_align={};
+    for (const [log, count] of Object.entries(global_log_counts)) {
+      const key = `log_${log}`;
+      if (params.has(key)) {
+        log_filter[log] = !params.get(key).startsWith("hide_");
+        log_align[log] = params.get(key).replace(/^hide_/, "");
+      } else {
+        log_filter[log] = count < defaults.threshold_for_visible;
+        log_align[log] = (log == "server") ? defaults.align_for_server_log : defaults.align_for_other_logs;
+      }
+    }
+    let start_time = null, end_time = null, time_exn = null;
     if (start.charAt(0) == "-") {
       try {
         end_time = parseTime(end);
@@ -455,13 +453,22 @@ function control_handler(event) {
         time_exn ||= e;
       }
     }
+    // make functions out of them
+    const text_fn = make_fn(text);
+    const id_fn = make_fn(id);
+    const color_fn = make_fn(color);
+    const filter_fn = make_fn(filter || "true");
+    const filter2_fn = (m) => log_filter[m.log] && filter_fn(m);
+    const align_fn = (m) => log_align[m.log];
     // render into html
+    const t0 = performance.now();
     const { messages, filter_exn } = filter_and_sort_messages(
       global_messages,
       filter2_fn,
       start_time,
       end_time
     );
+    const t1 = performance.now();
     const { text_exn, id_exn, color_exn } = render_messages(
       messages,
       text_fn,
@@ -469,27 +476,36 @@ function control_handler(event) {
       color_fn,
       align_fn
     );
+    const t2 = performance.now();
     render_error(document.getElementById("error_filter"), filter_exn);
     render_error(document.getElementById("error_time"), time_exn);
     render_error(document.getElementById("error_text"), text_exn);
     render_error(document.getElementById("error_id"), id_exn);
     render_error(document.getElementById("error_color"), color_exn);
+    const t3 = performance.now();
     render_missing_backgrounds();
+    const t4 = performance.now();
     // update or hide the persistent details popup
     const mindex = messages.findIndex(
       (m) => m.gindex == global_popup_message_index
     );
-    if (mindex == -1) render_popup(null);
+    if (mindex == -1 && messages.length > 0) render_popup(null);
     else render_popup(document.getElementById("messages").children[mindex]);
     // set some global values
-    for (let m of messages) {
-      delete m.gindex;
-      delete m.filter;
-    }
+    const t5 = performance.now();
     global_current_dictionary = build_dictionary(messages);
+    const t6 = performance.now();
     const lastChild = document.getElementById("messages").lastChild;
     global_resize_expected_height =
       lastChild == null ? 0 : lastChild.offsetTop + lastChild.offsetHeight;
+    // render perf
+    const perfElement = document.getElementById("perf");
+    let perf = ``;
+    perf += `filter_msgs [${(t1-t0).toFixed()}ms]\n`;
+    perf += `render_msgs [${(t2-t1).toFixed()}ms]\n`;
+    perf += `autocomplet [${(t6-t4).toFixed()}ms]`;
+    perfElement.innerText = perf;
+    perfElement.style.display = (t5 - t0 > 500) ? 'block' : 'none';
   }, timeout);
 }
 
@@ -762,7 +778,6 @@ function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
       color_exn ||= e;
       color = color_error;
     }
-    if (m.filter === null) color = color_error; // if there had been errors computing its filter_fn
     // derived quantities pos[] and idmap[]
     pos[i] = { cx: align == "right" ? 380 : align == "left" ? 20 : 200 };
     if (id != null) {
@@ -1117,24 +1132,18 @@ function filter_and_sort_messages(source, filter_fn, start, end) {
   // We also add a property 'gindex' to the messages in our local 'messages' array,
   // for the index into the global messages list, and an optional property
   // 'filter' which has value null for everything that couldn't be filtered.
-  let messages = global_messages
-    .map((m, gindex) => {
-      let filter;
-      try {
-        filter = filter_fn(m);
-      } catch (e) {
-        filter_exn ||= e;
-        filter = null;
-      }
-      if (filter === true) return { ...m, gindex };
-      return { ...m, gindex, filter };
-    })
-    .filter((m) => {
-      if (start != null && (m.time == null || m.time < start)) return false;
-      if (end != null && (m.time == null || m.time > end)) return false;
-      if (m.filter === false) return false;
-      return true;
-    });
+  let messages = [];
+  for (let gindex=0; gindex<global_messages.length; gindex++) {
+    const m = global_messages[gindex];
+    if (start != null && (m.time == null || m.time < start)) continue;
+    if (end != null && (m.time == null || m.time > end)) continue;
+    try {
+      if (filter_fn(m)) messages.push(m);
+    } catch (e) {
+      filter_exn ||= e;
+      messages.push(m); // still shown even with error
+    }
+  }
   messages.sort((a, b) =>
     a.time == null && b.time == null
       ? 0
@@ -1807,6 +1816,7 @@ function hsl(h, s, l) {
       <div class="error" id="error_details" style="display: none;"></div>
       <hr />
     </div>
+    <pre id="perf"></pre>
   </div>
   <div id="right">
     <div id="backgrounds">
