@@ -398,14 +398,22 @@ function control_handler(event) {
   // update URL
   const params = read_controls();
   if (update_url) {
-    // If there were params then we want '<url>?params'.
-    // We can do this just by setting the url to '?params' and the browser will fill in the url.
-    // If there were no params then we'd like to have just '<url>' without params.
-    // Only way to do this is to provide the actual url; an empty string won't do.
-    const url =
-      [...params.keys()].length == 0
-        ? String(window.location).replace(/\?.*$/, "")
-        : "?" + params.toString();
+    // The window.location url had the form '<url>?search' where some of the search belongs to
+    // seaoflogs and some doesn't. We will want to construct a new url where those belonging
+    // to seaoflogs have been reset according to params. If the the resulting url has no search,
+    // we want to remove the ? entirely.
+    let search = new URLSearchParams(window.location.search);
+    for (const k of ["filter", "start", "end", "text", "id", "color"]) {
+      search.delete(k);
+    }
+    for (const k of [...search.keys()].filter(k => k.startsWith("log_"))) {
+      search.delete(k);
+    }
+    for (const [k, v] of params.entries()) {
+      search.append(k, v);
+    }
+    const url = window.location.href.replace(/\?.*$/, "") +
+      (([...search.keys()].length == 0) ? '' : '?' + search.toString());
     history.replaceState(null, null, url);
   }
 
@@ -762,15 +770,6 @@ function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
       text_exn ||= e;
       text = text_error;
     }
-    let id;
-    try {
-      id = id_fn(m);
-      id = id == null ? null : String(id);
-    } catch (e) {
-      id_exn ||= e;
-      id = id_error;
-      color = color_error;
-    }
     let color;
     try {
       color = hsl((hash(String(color_fn(m))) % 12) / 12.0, 0.5, 0.9);
@@ -778,9 +777,24 @@ function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
       color_exn ||= e;
       color = color_error;
     }
+    let ids;
+    try {
+      ids = id_fn(m);
+      if (Array.isArray(ids)) {
+        ids = Array.from(new Set(ids.filter(x => x != null).map(x => String(x))).values());
+      } else if (ids != null) {
+        ids = [String(ids)];
+      } else {
+        ids = [];
+      }
+    } catch (e) {
+      id_exn ||= e;
+      ids = [];
+      color = color_error;
+    }
     // derived quantities pos[] and idmap[]
     pos[i] = { cx: align == "right" ? 380 : align == "left" ? 20 : 200 };
-    if (id != null) {
+    for (const id of ids) {
       if (idmap[id] == null) idmap[id] = [];
       idmap[id].push(i);
     }
@@ -1096,7 +1110,7 @@ const defaults = {
   filter: "",
   start: "",
   end: "",
-  text: "title",
+  text: "title || line",
   id: "id",
   color: "title",
   details: "message",
@@ -1158,6 +1172,25 @@ function filter_and_sort_messages(source, filter_fn, start, end) {
       : 0
   );
   return { messages, filter_exn };
+}
+
+/** Attempts to parse the string as a date/time in a few common log idioms. Test cases at https://jsfiddle.net/z6g20nq1/1/ */
+function tryParseLogTime(s) {
+  const match = s.match(/(?<y>\d\d\d\d)-(?<m>\d\d)-(?<d>\d\d) (?<hh>\d\d):(?<mm>\d\d):(?<ss>\d\d).(?<ms>\d\d\d)/) || // 2021-11-12 06:53:11.230
+      s.match(/(?<hh>\d\d):(?<mm>\d\d):(?<ss>\d\d).(?<ms>\d\d\d)/) || // 06:53:11.230
+      s.match(/(?<y>\d\d\d\d)-(?<m>\d\d)-(?<d>\d\d) (?<hh>\d\d):(?<mm>\d\d):(?<ss>\d\d)/) || // 2021-11-12 06:53:11
+      s.match(/(?<hh>\d\d):(?<mm>\d\d):(?<ss>\d\d)/) || // 06:53:11
+      s.match(/(?<m>\d+)\/(?<d>\d+)\/(?<y>\d+), (?<hh>\d+):(?<mm>\d+):(?<ss>\d+)() (?<ampm>(AM|PM))?/) || // 10/26/2021, 9:43:06 PM
+      s.match(/(?<hh>\d+):(?<mm>\d+):(?<ss>\d+) (?<ampm>(AM|PM))/); // 9:43:06 PM
+  if (!match) return null;
+  const y = parseInt(match.groups.y) || 1970;
+  const m = parseInt(match.groups.m) || 0;
+  const d = parseInt(match.groups.d) || 1;
+  const hh = parseInt(match.groups.hh) + (match.groups.ampm == 'PM' || match.groups.ampm == 'pm' ? 12 : 0)
+  const mm = parseInt(match.groups.mm);
+  const ss = parseInt(match.groups.ss);
+  const ms = parseInt(match.groups.ms) || 0;
+  return new Date(Date.UTC(y, m, d, hh, mm, ss, ms));
 }
 
 /**
@@ -1248,9 +1281,6 @@ function parse_message(log, prev_time, lines) {
   // Does one of the tags look like a timestamp? or have the form "...#..."?
   // We'll turn tags from a list into an object, with a member 'anon' for an
   // array of the unrecognized ones.
-  // Note: we'll discard the year-and-date part of it entirely, so that if we're
-  // mixing LSP logs (which lack year-and-date) with other logs (which have them)
-  // then they'll still lign up.
   let time = null;
   let id = null;
   let oldtags = tags;
@@ -1261,19 +1291,9 @@ function parse_message(log, prev_time, lines) {
     oldtags.shift();
   }
   for (const tag of oldtags) {
-    const match_time =
-      tag.match(/\d\d\d\d-\d\d-\d\d (\d\d):(\d\d):(\d\d).(\d\d\d)/) ||
-      tag.match(/(\d\d):(\d\d):(\d\d).(\d\d\d)/) ||
-      tag.match(/\d\d\d\d-\d\d-\d\d (\d\d):(\d\d):(\d\d)/) ||
-      tag.match(/(\d\d):(\d\d):(\d\d)/) ||
-      tag.match(/\d+\/\d+\/\d+, (\d+):(\d+):(\d+)() ((AM|PM))?/);
+    const match_time = tryParseLogTime(tag);
     if (match_time) {
-      const h = parseInt(match_time[1]);
-      const m = parseInt(match_time[2]);
-      const s = parseInt(match_time[3]);
-      const ms = parseInt(match_time[4] || "0");
-      const ampm = match_time[5];
-      time = new Date(Date.UTC(1970, 0, 1, h + (ampm == 'PM' ? 12 : 0), m, s, ms));
+      time = match_time;
     } else {
       const match_id = tag.match(/^([A-Za-z]*)#.*$/);
       if (match_id) {
@@ -1289,16 +1309,14 @@ function parse_message(log, prev_time, lines) {
     }
   }
 
-  // LSP messages have a peculiar format.
+  // LSP messages have a particular format.
   {
     const match = lines[0].match(
-      /^\[Trace - (?<h>\d+):(?<m>\d+):(?<s>\d+) (?<pm>(AM|PM))\] (?<dir>(Sending|Received)) (?<kind>(request|response|notification)) '(?<method_and_id>[^']*)' *(?<body>.*)$/
+      /^\[Trace - (?<time>[^\]]*)\] (?<dir>(Sending|Received)) (?<kind>(request|response|notification)) '(?<method_and_id>[^']*)' *(?<body>.*)$/
     );
-    if (match) {
-      const h = parseInt(match.groups.h) + (match.groups.pm == "AM" ? 0 : 12);
-      const m = parseInt(match.groups.m);
-      const s = parseInt(match.groups.s);
-      time = new Date(Date.UTC(1970, 0, 1, h, m, s));
+    const lsp_time = match ? tryParseLogTime(match.groups.time) : null;
+    if (match && lsp_time) {
+      time = lsp_time;
       log = match.groups.dir == "Sending" ? "client" : "server";
       title = match.groups.method_and_id.replace(/ - \(.*\)$/,''); // e.g. 'textDocument/didChange'
       body = match.groups.body;
@@ -1340,13 +1358,13 @@ function parse_message(log, prev_time, lines) {
     }
   }
 
-  // As discussed above, we discarded the year-and-date part of the timestamp (if present).
-  // To handle wraparound at midnight, we'll say that if a subsequent message
+  // Some logs have timestamps that omit the year/month/day; they have only time-of-day.
+  // To handle wraparound at midnight, we'll say that if a such subsequent message
   // is earlier that the previous one, then it must be one day ahead.
-  while (time != null && prev_time != null && time < prev_time) {
-    time.setUTCDate(time.getUTCDate() + 1);
+  if (time != null && time.getUTCFullYear() == 1970 && prev_time != null) {
+    while (time < prev_time) time.setUTCDate(time.getUTCDate() + 1);
   }
-  time = time || prev_time;
+  time = time || prev_time;  
 
   return {
     log,
@@ -1405,6 +1423,26 @@ function parse_log(log, lines) {
     if (m.time == null) m.time = prev_time;
   }
   // Invariant: either every message has a timestamp, or none of them do.
+
+  // Some log formats include dates "2021-11-12 14:44:00" but LSP traces typically don't "2:44:00 PM".
+  // We want to support a user who views a fully-dated log, and adds start/end queries on it,
+  // but then subsequently brings in an LSP log as well and expects the LSP messages to collate.
+  // To accomodate this, we'll simply remove all date information: we'll say that every log
+  // starts on January 1st 1970.
+  if (messages.length > 0) {
+    const t0 = new Date(messages[0].time);
+    t0.setUTCHours(0);
+    t0.setUTCMinutes(0);
+    t0.setUTCSeconds(0);
+    t0.setUTCMilliseconds(0);
+    const offset = t0.valueOf();
+    // e.g. if first timestamp was "2021-11-12 14:44:00", then offset is the number
+    // of milliseconds to subtract from it to get "1970-01-01 14:44:00"
+    for (const m of messages) {
+      m.time = new Date(m.time.valueOf() - offset);
+    }
+  }
+
   return messages;
 }
 
