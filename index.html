@@ -1770,16 +1770,16 @@ function parseTimeControl(time, messages, relativeTo) {
   }
 }
 
-/** Given a string, produces a hash number
+/** FNB-1a hash - given a string, produces a positive number.
+ * From https://gist.github.com/vaiorabbit/5657561
  */
-function hash(s) {
-  let hash = 0,
-    i,
-    chr;
-  for (i = 0; i < s.length; i++) {
-    hash = ((hash << 5) - hash + s.charCodeAt(i)) | 0;
+ function hash(s) {
+let hash = 0x811c9dc5;
+  for (let i=0; i<s.length; i++) {
+    hash ^= s.charCodeAt(i);
+    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
   }
-  return hash;
+  return Math.abs(hash);
 }
 
 /** Given a string like "id + title", this returns a function which
