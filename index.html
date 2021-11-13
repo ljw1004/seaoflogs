@@ -1896,7 +1896,7 @@ function hsl(h, s, l) {
             <input id="input_start" style="width: 6em;" onfocus="this.select()" oninput='control_handler(event)'
               type="text">
             <select id="select_start" style="width: 2.5ex;"
-              onchange="document.getElementById('input_start').value=this.options[this.selectedIndex].value;control_handler(event);"></select>
+              onchange="if (this.selectedIndex != 0) {document.getElementById('input_start').value=this.options[this.selectedIndex].value;control_handler(event);}"></select>
           </td>
         </tr>
         <tr>
@@ -1905,7 +1905,7 @@ function hsl(h, s, l) {
             <input id="input_end" style="width: 6em;" onfocus="this.select()" oninput='control_handler(event)'
               type="text">
             <select id="select_end" style="width: 2.5ex;"
-              onchange="document.getElementById('input_end').value=this.options[this.selectedIndex].value;control_handler(event);"></select>
+              onchange="if (this.selectedIndex != 0) {document.getElementById('input_end').value=this.options[this.selectedIndex].value;control_handler(event);}"></select>
           </td>
       </table>
       <div class="error" id="error_time" style="display: none;"></div>

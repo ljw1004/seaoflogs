@@ -68,7 +68,7 @@ The rules for parsing a logfile into messages:
 * `id` is best effort to extract an id from LSP Trace, or from a tag of the form [\#id].
 * `filename` is best effort to extract a filename.
 
-A limitation of LSP traces is that they lack dates; they have only times-of-day. Therefore sea-of-logs ignores the date components from all other logs too, to let them all be collated together into a single timeline. Another limitation of LSP traces is that they lack milliseconds -- but at least sea-of-logs does parse and respect milliseconds from other logs.
+A limitation of LSP traces is that they lack dates; they have only times-of-day. Sea-of-logs will compensate by assuming that the LSP trace starts on the same day as another fully dated log, if present. Another limitation of LSP traces is that they lack milliseconds -- but at least sea-of-logs does parse and respect milliseconds from other logs.
 
 Parsing is still a work in progress. If you have a reasonable log format that can't be parsed, we should figure out a generalization of your log format and change sea-of-logs to parse it.
 

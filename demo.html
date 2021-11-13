@@ -33,6 +33,11 @@
       white-space: nowrap;
     }
 
+    #perf {
+      display: none;
+      font-size: small;
+    }
+
     #right {
       margin: 0;
       margin-left: 20%;
@@ -276,7 +281,9 @@ function window_load_handler(event) {
     }
   }
   global_messages = global_messages.concat(parse_log(log, acc));
+  reconcile_log_dates(global_messages);
   global_log_counts = tally_logs(global_messages);
+  for (let i=0; i<global_messages.length; i++) global_messages[i].gindex=i;
   render_controls();
   document.getElementById(
     "loading"
@@ -299,7 +306,9 @@ function load_button_handler(event) {
       const log = logname_from_filepath(file.name);
       const lines = reader.result.split(/\r?\n/);
       global_messages = global_messages.concat(parse_log(log, lines));
+      reconcile_log_dates(global_messages);
       global_log_counts = tally_logs(global_messages);
+      for (let i=0; i<global_messages.length; i++) global_messages[i].gindex=i;
       render_controls();
       const params = new URLSearchParams(window.location.search);
       write_controls(params);
@@ -336,7 +345,7 @@ function control_handler(event) {
     displayed_message_length == 0
       ? global_messages.length
       : displayed_message_length;
-  let timeout = message_burden > 10000 ? 500 : message_burden > 2000 ? 150 : 50;
+  let timeout = message_burden > 10000 ? 1000 : message_burden > 3000 ? 250 : 50;
   let update_url = true;
 
   if (event.type == "load") {
@@ -366,11 +375,12 @@ function control_handler(event) {
   } else if (event.type == "change" && event.target.id == "time_menu") {
     // user clicked on a time popup. Again, no need for debouncing.
     timeout = 1;
-  } else if (
-    event.type == "input" &&
-    (event.target.id == "input_start" || event.target.id == "input_end")
-  ) {
-    // user typed in the time boxes. Uses normal debounce.
+  } else if (event.type == "input" && event.target.id == "input_start") {
+    // user typed in the time boxes. Uses normal debounce. Also, deselect the "select" dropdown
+    document.getElementById("select_start").selectedIndex = 0;
+  } else if (event.type == "input" && event.target.id == "input_end") {
+    // user typed in the time boxes. Uses normal debounce. Also, deselect the "select" dropdown
+    document.getElementById("select_end").selectedIndex = 0;
   } else if (event.type == "input" && event.target.tagName == "TEXTAREA") {
     // User typed in a textbox.
     // We'll immediately adjust the size of the textbox to fit whatever's there,
@@ -391,77 +401,85 @@ function control_handler(event) {
   // update URL
   const params = read_controls();
   if (update_url) {
-    // If there were params then we want '<url>?params'.
-    // We can do this just by setting the url to '?params' and the browser will fill in the url.
-    // If there were no params then we'd like to have just '<url>' without params.
-    // Only way to do this is to provide the actual url; an empty string won't do.
-    const url =
-      [...params.keys()].length == 0
-        ? String(window.location).replace(/\?.*$/, "")
-        : "?" + params.toString();
+    // The window.location url had the form '<url>?search' where some of the search belongs to
+    // seaoflogs and some doesn't. We will want to construct a new url where those belonging
+    // to seaoflogs have been reset according to params. If the the resulting url has no search,
+    // we want to remove the ? entirely.
+    let search = new URLSearchParams(window.location.search);
+    for (const k of ["filter", "start", "end", "text", "id", "color"]) {
+      search.delete(k);
+    }
+    for (const k of [...search.keys()].filter(k => k.startsWith("log_"))) {
+      search.delete(k);
+    }
+    for (const [k, v] of params.entries()) {
+      search.append(k, v);
+    }
+    const url = window.location.href.replace(/\?.*$/, "") +
+      (([...search.keys()].length == 0) ? '' : '?' + search.toString());
     history.replaceState(null, null, url);
   }
 
   clearTimeout(global_debounce_timeout);
   global_debounce_timeout = setTimeout(() => {
     // figure out the controls
-    const filter = params.has("filter")
-      ? params.get("filter")
-      : defaults.filter;
+    const filter = params.has("filter") ? params.get("filter") : defaults.filter;
     const start = params.has("start") ? params.get("start") : defaults.start;
     const end = params.has("end") ? params.get("end") : defaults.end;
     const text = params.has("text") ? params.get("text") : defaults.text;
     const id = params.has("id") ? params.get("id") : defaults.id;
     const color = params.has("color") ? params.get("color") : defaults.color;
-    const filter_fn = make_fn(filter || "true");
-    const filter2_fn = (m) => {
-      if (!filter_fn(m)) return false;
-      const key = `log_${m.log}`;
-      return (params.has(key)) ? !params.get(key).startsWith("hide_")
-        : global_log_counts[m.log] < defaults.threshold_for_visible;
-    };
-    const align_fn = (m) => {
-      const key = `log_${m.log}`;
-      return (params.has(key)) ? params.get(key).replace(/^hide_/, "")
-        : m.log == "server" ? defaults.align_for_server_log
-        : defaults.align_for_other_logs;
-    };
-    const text_fn = make_fn(text);
-    const id_fn = make_fn(id);
-    const color_fn = make_fn(color);
-    let start_time = null,
-      end_time = null,
-      time_exn = null;
+    let log_filter={}, log_align={};
+    for (const [log, count] of Object.entries(global_log_counts)) {
+      const key = `log_${log}`;
+      if (params.has(key)) {
+        log_filter[log] = !params.get(key).startsWith("hide_");
+        log_align[log] = params.get(key).replace(/^hide_/, "");
+      } else {
+        log_filter[log] = count < defaults.threshold_for_visible;
+        log_align[log] = (log == "server" || log.endsWith(":server")) ? defaults.align_for_server_log : defaults.align_for_other_logs;
+      }
+    }
+    let start_time = null, end_time = null, time_exn = null;
     if (start.charAt(0) == "-") {
       try {
-        end_time = parseTime(end);
+        end_time = parseTimeControl(end, global_messages);
       } catch (e) {
         time_exn ||= e;
       }
       try {
-        start_time = parseTime(start, end_time);
+        start_time = parseTimeControl(start, global_messages, end_time);
       } catch (e) {
         time_exn ||= e;
       }
     } else {
       try {
-        start_time = parseTime(start);
+        start_time = parseTimeControl(start, global_messages);
       } catch (e) {
         time_exn ||= e;
       }
       try {
-        end_time = parseTime(end, start_time);
+        end_time = parseTimeControl(end, global_messages, start_time);
       } catch (e) {
         time_exn ||= e;
       }
     }
+    // make functions out of them
+    const text_fn = make_fn(text);
+    const id_fn = make_fn(id);
+    const color_fn = make_fn(color);
+    const filter_fn = make_fn(filter || "true");
+    const filter2_fn = (m) => log_filter[m.log] && filter_fn(m);
+    const align_fn = (m) => log_align[m.log];
     // render into html
+    const t0 = performance.now();
     const { messages, filter_exn } = filter_and_sort_messages(
       global_messages,
       filter2_fn,
       start_time,
       end_time
     );
+    const t1 = performance.now();
     const { text_exn, id_exn, color_exn } = render_messages(
       messages,
       text_fn,
@@ -469,27 +487,36 @@ function control_handler(event) {
       color_fn,
       align_fn
     );
+    const t2 = performance.now();
     render_error(document.getElementById("error_filter"), filter_exn);
     render_error(document.getElementById("error_time"), time_exn);
     render_error(document.getElementById("error_text"), text_exn);
     render_error(document.getElementById("error_id"), id_exn);
     render_error(document.getElementById("error_color"), color_exn);
+    const t3 = performance.now();
     render_missing_backgrounds();
+    const t4 = performance.now();
     // update or hide the persistent details popup
     const mindex = messages.findIndex(
       (m) => m.gindex == global_popup_message_index
     );
-    if (mindex == -1) render_popup(null);
+    if (mindex == -1 && messages.length > 0) render_popup(null);
     else render_popup(document.getElementById("messages").children[mindex]);
     // set some global values
-    for (let m of messages) {
-      delete m.gindex;
-      delete m.filter;
-    }
+    const t5 = performance.now();
     global_current_dictionary = build_dictionary(messages);
+    const t6 = performance.now();
     const lastChild = document.getElementById("messages").lastChild;
     global_resize_expected_height =
       lastChild == null ? 0 : lastChild.offsetTop + lastChild.offsetHeight;
+    // render perf
+    const perfElement = document.getElementById("perf");
+    let perf = ``;
+    perf += `filter_msgs [${(t1-t0).toFixed()}ms]\n`;
+    perf += `render_msgs [${(t2-t1).toFixed()}ms]\n`;
+    perf += `autocomplet [${(t6-t4).toFixed()}ms]`;
+    perfElement.innerText = perf;
+    perfElement.style.display = (t5 - t0 > 500) ? 'block' : 'none';
   }, timeout);
 }
 
@@ -500,6 +527,7 @@ function message_handler(event, messageDiv, gindex) {
   event.stopPropagation();
   document.getElementById("menu").style.display = "none";
   if (global_popup_message_index == gindex && document.getElementById('popup').style.display == 'block') {
+    global_popup_message_index = -1;
     render_popup(null);
   } else {
     global_popup_message_index = gindex;
@@ -508,7 +536,8 @@ function message_handler(event, messageDiv, gindex) {
 }
 
 /** Called by messagetime's onclick handler, for when
- * the user clicks on a time to populate start/end times
+ * the user clicks on a time to show a popup which then
+ * is able to set the start/end times.
  */
 function time_handler(event, time) {
   event.stopPropagation();
@@ -531,7 +560,9 @@ function time_handler(event, time) {
       value == "end"
         ? document.getElementById("input_end")
         : document.getElementById("input_start");
-    input.value = formatTime(time, "full");
+    input.value = formatTimeControl(time, global_messages);
+    // we'll also reset the input-time-control dropdown back to "(select)"
+    document.getElementById(value == "end" ? "select_end" : "select_start").selectedIndex = 0;
     control_handler(event);
   });
 }
@@ -629,7 +660,7 @@ function hide_popups_handler(event) {
     dismiss_popup = parent == null;
   }
   if (dismiss_menu) menu.style.display = "none";
-  if (dismiss_popup) render_popup(null);
+  if (dismiss_popup) {global_popup_message_index = -1; render_popup(null);}
 }
 
 // ===================================================================
@@ -746,15 +777,6 @@ function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
       text_exn ||= e;
       text = text_error;
     }
-    let id;
-    try {
-      id = id_fn(m);
-      id = id == null ? null : String(id);
-    } catch (e) {
-      id_exn ||= e;
-      id = id_error;
-      color = color_error;
-    }
     let color;
     try {
       color = hsl((hash(String(color_fn(m))) % 12) / 12.0, 0.5, 0.9);
@@ -762,17 +784,32 @@ function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
       color_exn ||= e;
       color = color_error;
     }
-    if (m.filter === null) color = color_error; // if there had been errors computing its filter_fn
+    let ids;
+    try {
+      ids = id_fn(m);
+      if (Array.isArray(ids)) {
+        ids = Array.from(new Set(ids.filter(x => x != null).map(x => String(x))).values());
+      } else if (ids != null) {
+        ids = [String(ids)];
+      } else {
+        ids = [];
+      }
+    } catch (e) {
+      id_exn ||= e;
+      ids = [];
+      color = color_error;
+    }
     // derived quantities pos[] and idmap[]
-    pos[i] = { cx: align == "right" ? 380 : align == "left" ? 20 : 200 };
-    if (id != null) {
+    let jiggle = (hash(text) % 6) - 3;
+    pos[i] = { cx: align == "right" ? 370 + jiggle : align == "left" ? 30 + jiggle : 200 + jiggle};
+    for (const id of ids) {
       if (idmap[id] == null) idmap[id] = [];
       idmap[id].push(i);
     }
     // produce the html for this message
     let time = "";
     if (m.time != null) {
-      time = formatTime(m.time);
+      time = formatCompactTime(m.time);
       time = `<span class='messagetime'>${
         align == "right" ? "&nbsp;" : ""
       }${time}${align == "right" ? "" : "&nbsp;"}</span>`;
@@ -950,7 +987,7 @@ function read_controls() {
       : "hide_" + alignElement.value; // e.g. "left" or "hide_center"
     const log = key.replace(/^log_/, "");
     const def_checked = (global_log_counts[log] < defaults.threshold_for_visible) ? "" : "hide_";
-    const def_align = (log == 'server') ? defaults.align_for_server_log : defaults.align_for_other_logs;
+    const def_align = (log == "server" || log.endsWith(":server")) ? defaults.align_for_server_log : defaults.align_for_other_logs;
     if (value == `${def_checked}${def_align}`) continue;
     params.set(key, value);
   }
@@ -981,7 +1018,7 @@ function write_controls(params) {
       alignElement.value = value.replace(/^hide_/, "");
     } else {
       checkboxElement.checked = global_log_counts[log] < defaults.threshold_for_visible;
-      alignElement.value = (log == "server") ? defaults.align_for_server_log : defaults.align_for_other_logs;
+      alignElement.value = (log == "server" || log.endsWith(":server")) ? defaults.align_for_server_log : defaults.align_for_other_logs;
     }
   }
 }
@@ -1047,19 +1084,19 @@ function render_controls() {
   }
   document.getElementById("time").style.display = "block";
   let s;
-  s = formatTime(earliest, "full");
-  let html_start = `<option></option><option value='${s}'>${s}</option>`;
-  s = formatTime(latest, "full");
-  let html_end = `<option></option><option value='${s}'>${s}</option>`;
+  s = formatTimeControl(earliest, global_messages);
+  let html_start = `<option>(select)</option><option></option><option value='${s}'>${s}</option>`;
+  s = formatTimeControl(latest, global_messages);
+  let html_end = `<option>(select)</option><option></option><option value='${s}'>${s}</option>`;
   html_end += `<option value='+5s'>+5s</option>`;
   html_end += `<option value='+10 minutes'>+10 minutes</option>`;
   for (const log of logs) {
     if (extremes[log].earliest != null) {
-      const s = formatTime(extremes[log].earliest, 'full');
+      const s = formatTimeControl(extremes[log].earliest, global_messages);
       html_start += `<option value='${s}'>${s} - ${log}</option>`;
     }
     if (extremes[log].latest != null) {
-      const s = formatTime(extremes[log].latest, 'full');
+      const s = formatTimeControl(extremes[log].latest, global_messages);
       html_end += `<option value='${s}'>${s} - ${log}</option>`;
     }
   }
@@ -1081,7 +1118,7 @@ const defaults = {
   filter: "",
   start: "",
   end: "",
-  text: "title",
+  text: "title || line",
   id: "id",
   color: "title",
   details: "message",
@@ -1117,24 +1154,18 @@ function filter_and_sort_messages(source, filter_fn, start, end) {
   // We also add a property 'gindex' to the messages in our local 'messages' array,
   // for the index into the global messages list, and an optional property
   // 'filter' which has value null for everything that couldn't be filtered.
-  let messages = global_messages
-    .map((m, gindex) => {
-      let filter;
-      try {
-        filter = filter_fn(m);
-      } catch (e) {
-        filter_exn ||= e;
-        filter = null;
-      }
-      if (filter === true) return { ...m, gindex };
-      return { ...m, gindex, filter };
-    })
-    .filter((m) => {
-      if (start != null && (m.time == null || m.time < start)) return false;
-      if (end != null && (m.time == null || m.time > end)) return false;
-      if (m.filter === false) return false;
-      return true;
-    });
+  let messages = [];
+  for (let gindex=0; gindex<global_messages.length; gindex++) {
+    const m = global_messages[gindex];
+    if (start != null && (m.time == null || m.time < start)) continue;
+    if (end != null && (m.time == null || m.time > end)) continue;
+    try {
+      if (filter_fn(m)) messages.push(m);
+    } catch (e) {
+      filter_exn ||= e;
+      messages.push(m); // still shown even with error
+    }
+  }
   messages.sort((a, b) =>
     a.time == null && b.time == null
       ? 0
@@ -1149,6 +1180,25 @@ function filter_and_sort_messages(source, filter_fn, start, end) {
       : 0
   );
   return { messages, filter_exn };
+}
+
+/** Attempts to parse the string as a date/time in a few common log idioms. Test cases at https://jsfiddle.net/z6g20nq1/1/ */
+function tryParseLogTime(s) {
+  const match = s.match(/(?<y>\d\d\d\d)-(?<m>\d\d)-(?<d>\d\d) (?<hh>\d\d):(?<mm>\d\d):(?<ss>\d\d).(?<ms>\d\d\d)/) || // 2021-11-12 06:53:11.230
+      s.match(/(?<hh>\d\d):(?<mm>\d\d):(?<ss>\d\d).(?<ms>\d\d\d)/) || // 06:53:11.230
+      s.match(/(?<y>\d\d\d\d)-(?<m>\d\d)-(?<d>\d\d) (?<hh>\d\d):(?<mm>\d\d):(?<ss>\d\d)/) || // 2021-11-12 06:53:11
+      s.match(/(?<hh>\d\d):(?<mm>\d\d):(?<ss>\d\d)/) || // 06:53:11
+      s.match(/(?<m>\d+)\/(?<d>\d+)\/(?<y>\d+), (?<hh>\d+):(?<mm>\d+):(?<ss>\d+)() (?<ampm>(AM|PM))?/) || // 10/26/2021, 9:43:06 PM
+      s.match(/(?<hh>\d+):(?<mm>\d+):(?<ss>\d+) (?<ampm>(AM|PM))/); // 9:43:06 PM
+  if (!match) return null;
+  const y = parseInt(match.groups.y) || 1970;
+  const m = parseInt(match.groups.m) || 0;
+  const d = parseInt(match.groups.d) || 1;
+  const hh = parseInt(match.groups.hh) + (match.groups.ampm == 'PM' || match.groups.ampm == 'pm' ? 12 : 0)
+  const mm = parseInt(match.groups.mm);
+  const ss = parseInt(match.groups.ss);
+  const ms = parseInt(match.groups.ms) || 0;
+  return new Date(Date.UTC(y, m, d, hh, mm, ss, ms));
 }
 
 /**
@@ -1239,9 +1289,6 @@ function parse_message(log, prev_time, lines) {
   // Does one of the tags look like a timestamp? or have the form "...#..."?
   // We'll turn tags from a list into an object, with a member 'anon' for an
   // array of the unrecognized ones.
-  // Note: we'll discard the year-and-date part of it entirely, so that if we're
-  // mixing LSP logs (which lack year-and-date) with other logs (which have them)
-  // then they'll still lign up.
   let time = null;
   let id = null;
   let oldtags = tags;
@@ -1252,19 +1299,9 @@ function parse_message(log, prev_time, lines) {
     oldtags.shift();
   }
   for (const tag of oldtags) {
-    const match_time =
-      tag.match(/\d\d\d\d-\d\d-\d\d (\d\d):(\d\d):(\d\d).(\d\d\d)/) ||
-      tag.match(/(\d\d):(\d\d):(\d\d).(\d\d\d)/) ||
-      tag.match(/\d\d\d\d-\d\d-\d\d (\d\d):(\d\d):(\d\d)/) ||
-      tag.match(/(\d\d):(\d\d):(\d\d)/) ||
-      tag.match(/\d+\/\d+\/\d+, (\d+):(\d+):(\d+)() ((AM|PM))?/);
+    const match_time = tryParseLogTime(tag);
     if (match_time) {
-      const h = parseInt(match_time[1]);
-      const m = parseInt(match_time[2]);
-      const s = parseInt(match_time[3]);
-      const ms = parseInt(match_time[4] || "0");
-      const ampm = match_time[5];
-      time = new Date(Date.UTC(1970, 0, 1, h + (ampm == 'PM' ? 12 : 0), m, s, ms));
+      time = match_time;
     } else {
       const match_id = tag.match(/^([A-Za-z]*)#.*$/);
       if (match_id) {
@@ -1280,17 +1317,15 @@ function parse_message(log, prev_time, lines) {
     }
   }
 
-  // LSP messages have a peculiar format.
+  // LSP messages have a particular format.
   {
     const match = lines[0].match(
-      /^\[Trace - (?<h>\d+):(?<m>\d+):(?<s>\d+) (?<pm>(AM|PM))\] (?<dir>(Sending|Received)) (?<kind>(request|response|notification)) '(?<method_and_id>[^']*)' *(?<body>.*)$/
+      /^\[Trace - (?<time>[^\]]*)\] (?<dir>(Sending|Received)) (?<kind>(request|response|notification)) '(?<method_and_id>[^']*)' *(?<body>.*)$/
     );
-    if (match) {
-      const h = parseInt(match.groups.h) + (match.groups.pm == "AM" ? 0 : 12);
-      const m = parseInt(match.groups.m);
-      const s = parseInt(match.groups.s);
-      time = new Date(Date.UTC(1970, 0, 1, h, m, s));
-      log = match.groups.dir == "Sending" ? "client" : "server";
+    const lsp_time = match ? tryParseLogTime(match.groups.time) : null;
+    if (match && lsp_time) {
+      time = lsp_time;
+      log = `${log == "(default)" ? "" : log + ':'}${match.groups.dir == "Sending" ? "client" : "server"}`;
       title = match.groups.method_and_id.replace(/ - \(.*\)$/,''); // e.g. 'textDocument/didChange'
       body = match.groups.body;
       json = lines
@@ -1317,7 +1352,7 @@ function parse_message(log, prev_time, lines) {
         root = json;
       }
       // ids generated by the server are in a different namespace from those generated by the client
-      let originate_by_server = log == "server" ? true : false;
+      let originate_by_server = (log == "server" || log.endsWith(":server")) ? true : false;
       if (kind == "response") originate_by_server = !originate_by_server;
       if (originate_by_server && id != null) id = `s#${id}`;
       // cancelRequest notification is about this particular id
@@ -1331,13 +1366,13 @@ function parse_message(log, prev_time, lines) {
     }
   }
 
-  // As discussed above, we discarded the year-and-date part of the timestamp (if present).
-  // To handle wraparound at midnight, we'll say that if a subsequent message
+  // Some logs have timestamps that omit the year/month/day; they have only time-of-day.
+  // To handle wraparound at midnight, we'll say that if a such subsequent message
   // is earlier that the previous one, then it must be one day ahead.
-  while (time != null && prev_time != null && time < prev_time) {
-    time.setUTCDate(time.getUTCDate() + 1);
+  if (time != null && time.getUTCFullYear() == 1970 && prev_time != null) {
+    while (time < prev_time) time.setUTCDate(time.getUTCDate() + 1);
   }
-  time = time || prev_time;
+  time = time || prev_time;  
 
   return {
     log,
@@ -1363,8 +1398,9 @@ function line_starts_message(line) {
 }
 
 /**
- * Given the name of a logfile we're processing, and its content,
- * parse it into a list of messages and return that list.
+ * Given the string name of a logfile we're processing (or "(default)" if it
+ * lacks a name), and its content, parse it into a list of messages and 
+ * return that list.
  */
 function parse_log(log, lines) {
   // A log's text is a series of "messages" with trivia between them.
@@ -1396,7 +1432,52 @@ function parse_log(log, lines) {
     if (m.time == null) m.time = prev_time;
   }
   // Invariant: either every message has a timestamp, or none of them do.
+
   return messages;
+}
+
+
+/** If the log contains some messages that are fully-dated e.g. 2021-11-18, and
+ * other messages maybe from an LSP trace which don't have dates and are stored
+ * starting 1970-01-01, then this method rewrites the undated messages to start
+ * at the earliest full date.
+ * Note: some logs are entirely undated. They're skipped by this method.
+*/
+function reconcile_log_dates(messages) {
+  // Context:
+  // Some log formats include dates "2021-11-12 14:44:00" but LSP traces typically don't "2:44:00 PM".
+  // How can we support (1) scenario where the addendum has one log that starts on 2021-11-18 and
+  // a fully-dated LSP trace that starts on 2021-11-19, the next day? (2) scenario where the user
+  // loads an undated LSP trace and wants it to look reasonable? (3) scenario where the user
+  // loads an undated LSP trace that starts on 2021-11-19 and then afterwards loads a fully-dated
+  // other log that also starts on 2021-11-19 and wants to see them interleaved? (4) reverse
+  // where the user first loads the fully-dated other log and then loads the undated LSP trace
+  // where both start on the same day? -- That's what this method achieves.
+
+  // But, when parsing a log, we "increment the date" if ever we see a time followed
+  // by an earlier time, e.g. 23:50:05 followed by 00:02:03. If there was an undated
+  // log with more than 365 such resets, its year won't be 1970 any longer, and
+  // this logic will fail.
+  let earliest = null;
+  for (const m of messages) {
+    if (m.time == null) continue;
+    if (m.time.getUTCFullYear() == 1970) continue;
+    if (earliest == null) earliest = m.time;
+    if (m.time < earliest) earliest = m.time;
+  }
+  if (!earliest) return;
+  earliest = new Date(earliest);
+  earliest.setUTCHours(0);
+  earliest.setUTCMinutes(0);
+  earliest.setUTCSeconds(0);
+  earliest.setUTCMilliseconds(0);
+  const offset = earliest.valueOf();
+  // e.g. if first timestamp was "2021-11-12 14:44:00", then offset is the number
+  // of milliseconds to add to "1970-01-01 09:17:00" to get "2021-11-12 09:17:00"
+  for (const m of messages) {
+    if (m.time.getUTCFullYear() != 1970) continue;
+    m.time = new Date(m.time.valueOf() + offset);
+  }
 }
 
 /** Given a list of messages, constructs and returns an autocomplete dictionary for it.
@@ -1567,52 +1648,115 @@ function esc(s) {
     .replace(/'/g, "&apos;");
 }
 
-/** Given a Date object, returns either just the hh:mm:ss 'compact' format for use in the messages pane,
- * or returns hh:mm:ss (+Ndays) 'full' format in the time selector
+/** Pads a number with leading zeros to take it up to length 2,
+ * or some other number specified in 'n'. */
+function pad2(s, n) {
+  s = String(s);
+  while (s.length < (n || 2)) s = "0" + s;
+  return s;
+};
+
+/** Given a Date object, returns an dateless and millisecondless "18:23:15" time to show
+ * next to the message
  */
-function formatTime(time, style) {
-  const pad2 = (s, n) => {
-    s = String(s);
-    while (s.length < (n || 2)) s = "0" + s;
-    return s;
-  };
-  let hms = `${pad2(time.getUTCHours())}:${pad2(time.getUTCMinutes())}:${pad2(
-    time.getUTCSeconds()
-  )}`;
-  const plusDays = time.getUTCDate() - 1;
-  let ms = time.getUTCMilliseconds();
-  if (style !== "full") return hms;
-  if (ms != 0) hms += `.${pad2(ms, 3)}`;
-  if (plusDays == 0) return hms;
-  return `${hms} +${plusDays}day${plusDays == 1 ? "" : "s"}`;
+ function formatCompactTime(time) {
+  const hh = pad2(time.getUTCHours());
+  const mm = pad2(time.getUTCMinutes());
+  const ss = pad2(time.getUTCSeconds());
+  return `${hh}:${mm}:${ss}`;
 }
 
-/** Given a string, parses it into a time. This is recognized:
- *   null/empty string -> returns null
- *   hh:mm:ss(.mmm])? (+Ndays)?
- * If a Date object "relativeTo" is provided then a few additional formats are recognized.
- *   +N s(econds)?|m(inutes)?|h(ours)?
- * If the string can't be parsed, throw a descriptive exception
+
+/** We strive to display time-control with just times "18:23:15" even though logs have
+ * full dates "2021-11-13 18:23:15", and some undated logs like LSP have epoch-relative
+ * full dates "1970-01-01 18:23:15". We do this with reference to a "reference time"
+ * which is the date part "2021-11-13 / 1970-01-01" of the first log message to have a time.
+ * This function returns that reference time.
  */
-function parseTime(time, relativeTo) {
+function referenceForTimeControl(messages) {
+  const m = messages.find(m => m.time != null);
+  if (!m) return null;
+  let t = new Date(m.time);
+  t.setUTCHours(0);
+  t.setUTCMinutes(0);
+  t.setUTCSeconds(0);
+  t.setUTCMilliseconds(0);
+  return t;
+}
+
+/** Given a Date object, returns something for the time controls to show.
+ * We make use of a "reference date" derived from the messages list.
+ * For instance, given reference date "2021-11-13" then we'd display
+ * "2021-11-14 18:23:15.123" as "18:23:15.123 (+1day)"
+ * Note: this also works if the reference date is "1970-01-01" indicating
+ * an undated log, and the date we're given is "1970-01-01"
+ * If no reference time is provided, then the user has no business using
+ * time filters, so we'll solely display the time part.
+ */
+function formatTimeControl(time, messages) {
+  const ms = time.getUTCMilliseconds() == 0 ? "" : "." + pad2(time.getUTCMilliseconds(), 3);
+  const hms = `${formatCompactTime(time)}${ms}`;
+  const ref = referenceForTimeControl(messages);
+  if (ref == null) return hms;
+  // Calculate number of days between 'ref' and 'time'
+  // We'll do it by constructing UTC objects, since they don't have daylight saving
+  // and hence each day is exactly 24hrs long always.
+  const start = Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate());
+  const end = Date.UTC(time.getUTCFullYear(), time.getUTCMonth(), time.getUTCDate());
+  const plusDays = Math.round((start - end) / (1000 * 60 * 60 * 24));
+  if (plusDays == 0) return hms;
+  return `${hms} (${plusDays > 0 ? "+" : "-"}${Math.abs(plusDays)}${Math.abs(plusDays) == 1 ? "" : "s"})`;
+}
+
+/** Given a string from a time control, parses it into a time. This is recognized:
+ *   null/empty string -> returns null
+ *   yyyy-mm-dd hh:mm:ss(.mmm)?
+ * If the messages list provides a reference date, then we also recognize:
+ *   hh:mm:ss(.mmm)? -> uses yyyy-mm-dd from reference date
+ *   hh:mm:ss(.mmm)? (+|-D ?days?) -> D days before or after the reference date
+ * If a Date object "relativeTo" is provided then a few additional formats are recognized:
+ *   (+|-)N s(econds)?|m(inutes)?|h(ours)?
+ * If the string can't be parsed, throw a descriptive human-readable exception text
+ */
+function parseTimeControl(time, messages, relativeTo) {
   if (time == null || time == "") return null;
-  if (time.match(/^\d/)) {
+  if (time.match(/^\d\d\d/) || time.match(/^\d+\//)) {
+    // starts with year
     const match = time.match(
-      /^(\d+):(\d+):(\d+)(\.(\d\d\d))? ?(\+(\d+) ?days?)?$/
+      /^(?<y>\d+)-(?<m>\d+)-(?<d>\d+) (?<hh>\d+):(?<mm>\d+):(?<ss>\d+)(\.(?<ms>\d\d\d))?$/
     );
-    if (!match) throw new Error("expected h:m:s.mmm");
-    const h = parseInt(match[1]),
-      m = parseInt(match[2]),
-      s = parseInt(match[3]);
-    const ms = match[5] == null ? 0 : parseInt(match[5]);
-    const n = match[7] == null ? 0 : parseInt(match[7]);
-    return new Date(Date.UTC(1970, 0, n + 1, h, m, s, ms));
+    if (!match) throw new Error("expected yyyy-mm-dd hh:mm:ss");
+    const y = parseInt(match.groups.y)
+    const m = parseInt(match.groups.m)
+    const d = parseInt(match.groups.d)
+    const hh = parseInt(match.groups.hh);
+    const mm = parseInt(match.groups.mm);
+    const ss = parseInt(match.groups.ss);
+    const ms = parseInt(match.groups.ms) || 0;
+    return new Date(Date.UTC(y, m, d, hh, mm, ss, ms));
+  } else if (time.match(/^\d/)) {
+    // starts with hours
+    const match = time.match(/^(?<hh>\d+):(?<mm>\d+):(?<ss>\d+)(\.(?<ms>\d\d\d))?(?<rest>.*)$/)
+    if (!match) throw new Error("expected hh:mm:ss")
+    const ref = referenceForTimeControl(messages);
+    if (ref == null) throw new Error("no log messages have any times in them");
+    const hh = parseInt(match.groups.hh);
+    const mm = parseInt(match.groups.mm);
+    const ss = parseInt(match.groups.ss);
+    const ms = parseInt(match.groups.ms) || 0;
+    let t = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate(), hh, mm, ss, ms));
+    if (!match.groups.rest) return t;
+    const match2 = match.groups.rest.match(/^ \((?<plusminus>\+|-)? (?<days>\d+) ?days?\)/);
+    if (!match2) throw new Error("expected hh:mm:ss (+Ndays)");
+    const plusDays = match2.groups.days * (match2.groups.plusminus == "+" ? 1 : -1);
+    t.setUTCDate(t.getUTCDate() + plusDays)
+    return t;
   } else if (time.charAt(0) == "+" || time.charAt(0) == "-") {
+    if (relativeTo == null) throw new Error("need start for +N relative times");
     const match = time.match(
       /^(\+|-)(\d+) ?(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hour|hours)$/
     );
     if (!match) throw new Error("expected +N h|m|s");
-    if (relativeTo == null) throw new Error("need start for +N relative times");
     const n = parseInt(match[2]) * (time.charAt() == "+" ? 1 : -1);
     const unit = match[3].charAt(0);
     const r = new Date(relativeTo.getTime());
@@ -1622,7 +1766,7 @@ function parseTime(time, relativeTo) {
     else throw new Error("unexpected time unit");
     return r;
   } else {
-    throw new Error(`expected h:m:s or +N h|m|s`);
+    throw new Error(`expected hh:mm:ss or +N h|m|s`);
   }
 }
 
@@ -1752,7 +1896,7 @@ function hsl(h, s, l) {
             <input id="input_start" style="width: 6em;" onfocus="this.select()" oninput='control_handler(event)'
               type="text">
             <select id="select_start" style="width: 2.5ex;"
-              onchange="document.getElementById('input_start').value=this.options[this.selectedIndex].value;control_handler(event);"></select>
+              onchange="if (this.selectedIndex != 0) {document.getElementById('input_start').value=this.options[this.selectedIndex].value;control_handler(event);}"></select>
           </td>
         </tr>
         <tr>
@@ -1761,7 +1905,7 @@ function hsl(h, s, l) {
             <input id="input_end" style="width: 6em;" onfocus="this.select()" oninput='control_handler(event)'
               type="text">
             <select id="select_end" style="width: 2.5ex;"
-              onchange="document.getElementById('input_end').value=this.options[this.selectedIndex].value;control_handler(event);"></select>
+              onchange="if (this.selectedIndex != 0) {document.getElementById('input_end').value=this.options[this.selectedIndex].value;control_handler(event);}"></select>
           </td>
       </table>
       <div class="error" id="error_time" style="display: none;"></div>
@@ -1807,6 +1951,7 @@ function hsl(h, s, l) {
       <div class="error" id="error_details" style="display: none;"></div>
       <hr />
     </div>
+    <pre id="perf"></pre>
   </div>
   <div id="right">
     <div id="backgrounds">
