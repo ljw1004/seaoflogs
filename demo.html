@@ -881,7 +881,12 @@ function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
     }
     let color;
     try {
-      color = hsl((hash(String(color_fn(m))) % 12) / 12.0, 0.5, 0.9);
+      color = color_fn(m);
+      if (typeof color === "string" && color.match(/^#[0-9a-fA-F]..(...)?$/)) {
+          // it's a color string of the form "#abc" or "#abcdef"
+      } else {
+          color = hsl((hash(String(color)) % 12) / 12.0, 0.5, 0.9);
+      }
     } catch (e) {
       color_exn = color_exn || e;
       color = color_error;
