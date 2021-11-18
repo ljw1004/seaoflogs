@@ -85,7 +85,7 @@ Parsing is still a work in progress. If you have a reasonable log format that ca
 # Make a self-contained html file by concatenating
 
 $ cp seaoflogs/index.html mylog.html
-$ tail -n +1 ~/logs/*  >> mylog.html
+$ tail -n +1 ~/logs/* | sed 's/-->/-- >/' >> mylog.html
 ```
 
 "Sea of logs" uses the standard MIT license to allow this self-contained distribution model.
@@ -96,6 +96,8 @@ $ tail -n +1 ~/logs/*  >> mylog.html
 *Scenario: my customers have sent me their confidential logfiles. I want to be able to analyze them but I have to be sure that I won't leak their data. I'm specifically not willing to upload the logs to some online log-visualizing website.* In this case you can download a copy of sea-of-logs index.html to your hard disk, audit it to confirm that it makes no network access, open the local file in your web-browser, and load files into it.
 
 *Scenario: my customer sent me a logfile that I don't trust. I want to visualize it but me sure it won't harm me.* I guess you benefit from sea-of-logs already running in the browser sandbox. You could try audit the code to see that logfiles are only ever loaded as data, never executed - but this is html so I suppose it's hard to be sure there aren't sneaky loopholes.
+
+*Scenario: my customer sent me a logfile that I don't trust. Is it safe to construct and view a self-contained sea-of-logs?* In addition to the above, this also opens up concerns whether the self-contained file "breaks out" of just being a log stored inside an html comment. The construction technique `sed 's/-->/-- >/` prevents the log from breaking out of that html comment. Beyond that, there are the same risks as above.
 
 *Scenario: someome sent me a malicious sea-of-logs bookmark. Can I click it?* Sea-of-logs bookmarks have the form `<url>?query=<executable_code>`, and the executable code is executed in the sea-of-logs page. Now if their bookmark takes you to an external site then the risk is no different from clicking on any random link to any random site, which we do all the time. If the bookmark directs you to a file:// url on your hard disk, and that file is seaoflogs.html, then the attacker's query string will be executed in the context of a local file on your hard disk. I don't know what protection browsers have against this. In addition to whatever protections the browser has, sea-of-logs provides its own secondary sandbox for that query-string, but I'm sure there are loopholes.
 

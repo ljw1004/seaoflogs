@@ -284,6 +284,8 @@ function window_load_handler(event) {
   reconcile_log_dates(global_messages);
   global_log_counts = tally_logs(global_messages);
   for (let i=0; i<global_messages.length; i++) global_messages[i].gindex=i;
+
+  render_page();
   render_controls();
   document.getElementById(
     "loading"
@@ -445,23 +447,23 @@ function control_handler(event) {
       try {
         end_time = parseTimeControl(end, global_messages);
       } catch (e) {
-        time_exn ||= e;
+        time_exn = time_exn || e;
       }
       try {
         start_time = parseTimeControl(start, global_messages, end_time);
       } catch (e) {
-        time_exn ||= e;
+        time_exn = time_exn || e;
       }
     } else {
       try {
         start_time = parseTimeControl(start, global_messages);
       } catch (e) {
-        time_exn ||= e;
+        time_exn = time_exn || e;
       }
       try {
         end_time = parseTimeControl(end, global_messages, start_time);
       } catch (e) {
-        time_exn ||= e;
+        time_exn = time_exn || e;
       }
     }
     // make functions out of them
@@ -673,6 +675,106 @@ function hide_popups_handler(event) {
 // ===================================================================
 // ===================================================================
 
+function render_page() {
+  const body = document.getElementsByTagName("body")[0];
+  body.onclick = hide_popups_handler;
+  body.innerHTML = `
+  <div id="left">
+    <div id="title">
+      <table>
+        <tr>
+          <td><b>Sea of logs</b></td>
+          <td>
+            <label for="load" id="loadbutton">Load...</label>
+            <input type="file" id="load" onchange='load_button_handler(event)' />
+          </td>
+        </tr>
+      </table>
+      <hr />
+    </div>
+    <div id="logs">
+      <table id="logs_table"></table>
+      <hr />
+    </div>
+    <div id="time">
+      <table>
+        <tr>
+          <td>Start</td>
+          <td>
+            <input id="input_start" style="width: 6em;" onfocus="this.select()" oninput='control_handler(event)'
+              type="text">
+            <select id="select_start" style="width: 2.5ex;"
+              onchange="if (this.selectedIndex != 0) {document.getElementById('input_start').value=this.options[this.selectedIndex].value;control_handler(event);}"></select>
+          </td>
+        </tr>
+        <tr>
+          <td>End</td>
+          <td>
+            <input id="input_end" style="width: 6em;" onfocus="this.select()" oninput='control_handler(event)'
+              type="text">
+            <select id="select_end" style="width: 2.5ex;"
+              onchange="if (this.selectedIndex != 0) {document.getElementById('input_end').value=this.options[this.selectedIndex].value;control_handler(event);}"></select>
+          </td>
+      </table>
+      <div class="error" id="error_time" style="display: none;"></div>
+      <hr />
+    </div>
+    <div id="filter">
+      Filter<br />
+      <textarea id="input_filter" wrap='soft' type='text' oninput='control_handler(event)'
+        onclick='autocomplete_handler(event)' onkeyup='autocomplete_handler(event)'
+        onfocus='autocomplete_handler(event)'></textarea>
+      <div class="error" id="error_filter" style="display: none;"></div>
+      <hr />
+    </div>
+    <div id="text">
+      Text<br />
+      <textarea id="input_text" wrap="soft" type='text' oninput='control_handler(event)'
+        onclick='autocomplete_handler(event)' onkeyup='autocomplete_handler(event)'
+        onfocus='autocomplete_handler(event)'>title</textarea>
+      <div class="error" id="error_text" style="display: none;"></div>
+      <hr />
+    </div>
+    <div id="color">
+      Color<br />
+      <textarea id="input_color" wrap="soft" type='text' oninput='control_handler(event)'
+        onclick='autocomplete_handler(event)' onkeyup='autocomplete_handler(event)'
+        onfocus='autocomplete_handler(event)'>title</textarea>
+      <div class="error" id="error_color" style="display: none;"></div>
+      <hr />
+    </div>
+    <div id="id">
+      Id<br />
+      <textarea id="input_id" wrap="soft" type='text' oninput='control_handler(event)'
+        onclick='autocomplete_handler(event)' onkeyup='autocomplete_handler(event)'
+        onfocus='autocomplete_handler(event)'>id</textarea>
+      <div class="error" id="error_id" style="display: none;"></div>
+      <hr />
+    </div>
+    <div id="details">
+      Details<br />
+      <textarea id="input_details" wrap="soft" type='text' oninput='control_handler(event)'
+        onclick='autocomplete_handler(event)' onkeyup='autocomplete_handler(event)'
+        onfocus='autocomplete_handler(event)'>message</textarea>
+      <div class="error" id="error_details" style="display: none;"></div>
+      <hr />
+    </div>
+    <pre id="perf"></pre>
+  </div>
+  <div id="right">
+    <div id="backgrounds">
+    </div>
+    <div id="connectors">
+      <svg id="svg" width="100%" height="100" viewbox="0 0 400 100" preserveAspectRatio="none"></svg>
+    </div>
+    <div id="messages">
+      <pre id="loading">Loading...</pre>
+    </div>
+  </div>
+  <div id="popup"></div>
+  <div id="menu"></div>`;
+}
+
 /** Figures out a good {x,y} for the popup to display related to the element.
  * If align is 'right' then it will align to the right of the element,
  * otherwise to the left.
@@ -774,14 +876,14 @@ function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
     try {
       text = esc(text_fn(m));
     } catch (e) {
-      text_exn ||= e;
+      text_exn = text_exn || e;
       text = text_error;
     }
     let color;
     try {
       color = hsl((hash(String(color_fn(m))) % 12) / 12.0, 0.5, 0.9);
     } catch (e) {
-      color_exn ||= e;
+      color_exn = color_exn || e;
       color = color_error;
     }
     let ids;
@@ -795,7 +897,7 @@ function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
         ids = [];
       }
     } catch (e) {
-      id_exn ||= e;
+      id_exn = id_exn || e;
       ids = [];
       color = color_error;
     }
@@ -1162,7 +1264,7 @@ function filter_and_sort_messages(source, filter_fn, start, end) {
     try {
       if (filter_fn(m)) messages.push(m);
     } catch (e) {
-      filter_exn ||= e;
+      filter_exn = filter_exn || e;
       messages.push(m); // still shown even with error
     }
   }
@@ -1309,7 +1411,7 @@ function parse_message(log, prev_time, lines) {
           id = tag;
         } else {
           tags[match_id[1]] = tag;
-          id ||= tag;
+          id = id || tag;
         }
       } else {
         tags.positional.push(tag);
@@ -1869,102 +1971,6 @@ function hsl(h, s, l) {
 
   </script>
 </head>
-
-<body onclick='hide_popups_handler(event)'>
-  <div id="left">
-    <div id="title">
-      <table>
-        <tr>
-          <td><b><a href="https://github.com/ljw1004/seaoflogs/blob/main/README.md">Sea of logs</a></b></td>
-          <td>
-            <label for="load" id="loadbutton">Load...</label>
-            <input type="file" id="load" onchange='load_button_handler(event)' />
-          </td>
-        </tr>
-      </table>
-      <hr />
-    </div>
-    <div id="logs">
-      <table id="logs_table"></table>
-      <hr />
-    </div>
-    <div id="time">
-      <table>
-        <tr>
-          <td>Start</td>
-          <td>
-            <input id="input_start" style="width: 6em;" onfocus="this.select()" oninput='control_handler(event)'
-              type="text">
-            <select id="select_start" style="width: 2.5ex;"
-              onchange="if (this.selectedIndex != 0) {document.getElementById('input_start').value=this.options[this.selectedIndex].value;control_handler(event);}"></select>
-          </td>
-        </tr>
-        <tr>
-          <td>End</td>
-          <td>
-            <input id="input_end" style="width: 6em;" onfocus="this.select()" oninput='control_handler(event)'
-              type="text">
-            <select id="select_end" style="width: 2.5ex;"
-              onchange="if (this.selectedIndex != 0) {document.getElementById('input_end').value=this.options[this.selectedIndex].value;control_handler(event);}"></select>
-          </td>
-      </table>
-      <div class="error" id="error_time" style="display: none;"></div>
-      <hr />
-    </div>
-    <div id="filter">
-      Filter<br />
-      <textarea id="input_filter" wrap='soft' type='text' oninput='control_handler(event)'
-        onclick='autocomplete_handler(event)' onkeyup='autocomplete_handler(event)'
-        onfocus='autocomplete_handler(event)'></textarea>
-      <div class="error" id="error_filter" style="display: none;"></div>
-      <hr />
-    </div>
-    <div id="text">
-      Text<br />
-      <textarea id="input_text" wrap="soft" type='text' oninput='control_handler(event)'
-        onclick='autocomplete_handler(event)' onkeyup='autocomplete_handler(event)'
-        onfocus='autocomplete_handler(event)'>title</textarea>
-      <div class="error" id="error_text" style="display: none;"></div>
-      <hr />
-    </div>
-    <div id="color">
-      Color<br />
-      <textarea id="input_color" wrap="soft" type='text' oninput='control_handler(event)'
-        onclick='autocomplete_handler(event)' onkeyup='autocomplete_handler(event)'
-        onfocus='autocomplete_handler(event)'>title</textarea>
-      <div class="error" id="error_color" style="display: none;"></div>
-      <hr />
-    </div>
-    <div id="id">
-      Id<br />
-      <textarea id="input_id" wrap="soft" type='text' oninput='control_handler(event)'
-        onclick='autocomplete_handler(event)' onkeyup='autocomplete_handler(event)'
-        onfocus='autocomplete_handler(event)'>id</textarea>
-      <div class="error" id="error_id" style="display: none;"></div>
-      <hr />
-    </div>
-    <div id="details">
-      Details<br />
-      <textarea id="input_details" wrap="soft" type='text' oninput='control_handler(event)'
-        onclick='autocomplete_handler(event)' onkeyup='autocomplete_handler(event)'
-        onfocus='autocomplete_handler(event)'>message</textarea>
-      <div class="error" id="error_details" style="display: none;"></div>
-      <hr />
-    </div>
-    <pre id="perf"></pre>
-  </div>
-  <div id="right">
-    <div id="backgrounds">
-    </div>
-    <div id="connectors">
-      <svg id="svg" width="100%" height="100" viewbox="0 0 400 100" preserveAspectRatio="none"></svg>
-    </div>
-    <div id="messages">
-      <pre id="loading">Loading...</pre>
-    </div>
-  </div>
-  <div id="popup"></div>
-  <div id="menu"></div>
-</body>
+<body>Sea of logs</body>
 </html>
 <!--
