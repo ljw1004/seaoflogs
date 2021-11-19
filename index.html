@@ -290,7 +290,7 @@ function window_load_handler(event) {
   document.getElementById(
     "loading"
   ).innerText = `Loading ${global_messages.length} messages...`;
-  const params = new URLSearchParams(window.location.search);
+  const params = new URLSearchParams(document.getElementsByTagName("meta")["seaoflogs_params"]?.content || window.location.search);
   write_controls(params);
   control_handler(event);
 }
@@ -419,7 +419,11 @@ function control_handler(event) {
     }
     const url = window.location.href.replace(/\?.*$/, "") +
       (([...search.keys()].length == 0) ? '' : '?' + search.toString());
-    history.replaceState(null, null, url);
+    if (document.getElementsByTagName("meta")["seaoflogs_params"] == null) {
+      history.replaceState(null, null, url);
+    } else {
+      window.top.postMessage(params.toString(), '*');
+    }
   }
 
   clearTimeout(global_debounce_timeout);

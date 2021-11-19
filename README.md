@@ -103,6 +103,12 @@ $ tail -n +1 ~/logs/* | sed 's/-->/-- >/' >> mylog.html
 
 *Scenario: someone uploaded a malicious self-contained file. Can I click it?* If they uploaded a self-contained sea-of-logs then they could have added malicious code, and you'd trust this just the same as trusting any random website. If they ask you to download the file, it's the same as downloading any random html from the internet and opening it locally.
 
+*Scenario: I want to host seaoflogs on my website. How can I be sure it won't be a vector for XSS attacks?* You could place seaoflogs in an `<iframe sandbox='allow-scripts' />`. This way it won't be able to make any network requests. However, seaoflogs uses the window.location query params to record
+its settings and this isn't allowed in an iframe. As a workaround, you can set `<meta name="seaoflogs_params" content="id=...&text=..." />` to
+tell the seaoflogs iframe which initial params it should use; later, whenever it wants its part of the window.location params to be changed, it'll request
+this by `window.top.postMessage(newparams)` to which you'll have to respond.
+
+
 
 ## Contributing
 
