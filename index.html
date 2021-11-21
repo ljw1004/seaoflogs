@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Sea of logs</title>S
+    <title>Sea of logs</title>
     <style type="text/css">
       html, body, iframe {width: 100%; height: 100%; overflow: hidden; margin: 0; border: none;}
     </style>
@@ -16,7 +16,7 @@
       }
 
       window.onmessage = (e) => {
-        console.log(`ONMESSAGE from origin=${e.origin}`);
+        if (e.origin != document.location.origin) return;
         const url = window.location.href.replace(/\?.*$/, "") + (e.data.length == 0 ? "" : "?" + e.data);
         history.replaceState(null, null, url);
       }
@@ -2005,4 +2005,3 @@ function hsl(h, s, l) {
 </body>
 </html>
 <!--
-ci
