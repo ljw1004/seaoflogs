@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Sea of logs</title>S
+    <style type="text/css">
+      html, body, iframe {width: 100%; height: 100%; overflow: hidden; margin: 0; border: none;}
+    </style>
+    <script>
+      window.onload = (_) => {
+        const params = new URLSearchParams(window.location.search);
+        const target = location.origin;
+        const logs = [...document.getElementsByTagName("body")[0].childNodes]
+          .filter((c) => c.nodeType == Node.COMMENT_NODE)
+          .reverse()[0].data;
+        document.getElementsByTagName("iframe")[0].contentWindow.init(params, target, logs);
+      }
+
+      window.onmessage = (e) => {
+        console.log(`ONMESSAGE from origin=${e.origin}`);
+        const url = window.location.href.replace(/\?.*$/, "") + (e.data.length == 0 ? "" : "?" + e.data);
+        history.replaceState(null, null, url);
+      }
+  </script>
+  </head>
+<body>
+  <iframe sandbox="allow-scripts allow-same-origin" srcdoc="&lt;!DOCTYPE html&gt;
+    &lt;link rel=&quot;stylesheet&quot; href=&quot;seaoflogs.css&quot; /&gt;
+    &lt;script src=&quot;seaoflogs.js&quot;&gt;&lt;/script&gt;"></iframe>
+</body>
+</html>
+<!--
+ci

@@ -1,0 +1,131 @@
+INFO [10/26/2021, 9:43:06 PM]: Extension version: 0.2.792
+INFO [10/26/2021, 9:43:06 PM]: Using configuration {
+  cargoRunner: null,
+  runnableEnv: null,
+  inlayHints: {
+    enable: true,
+    smallerHints: true,
+    chainingHints: true,
+    maxLength: 25,
+    parameterHints: true,
+    typeHints: true
+  },
+  updates: { channel: 'stable', askBeforeDownload: false },
+  server: { path: null, extraEnv: null },
+  trace: { server: 'verbose', extension: true },
+  debug: {
+    engine: 'auto',
+    sourceFileMap: {
+      '/rustc/<id>': '${env:USERPROFILE}/.rustup/toolchains/<toolchain-id>/lib/rustlib/src/rust'
+    },
+    openDebugPane: false,
+    engineSettings: {}
+  },
+  assist: {
+    importGranularity: 'crate',
+    importEnforceGranularity: false,
+    importPrefix: 'plain',
+    importGroup: true,
+    allowMergingIntoGlobImports: true
+  },
+  callInfo: { full: true },
+  cargo: {
+    autoreload: true,
+    allFeatures: false,
+    unsetTest: [ 'core' ],
+    features: [],
+    runBuildScripts: true,
+    useRustcWrapperForBuildScripts: true,
+    noDefaultFeatures: false,
+    target: null,
+    noSysroot: false
+  },
+  checkOnSave: {
+    enable: true,
+    allFeatures: null,
+    allTargets: true,
+    command: 'check',
+    noDefaultFeatures: null,
+    target: null,
+    extraArgs: [],
+    features: null,
+    overrideCommand: null
+  },
+  completion: {
+    addCallArgumentSnippets: true,
+    addCallParenthesis: true,
+    snippets: {},
+    postfix: { enable: true },
+    autoimport: { enable: true },
+    autoself: { enable: true }
+  },
+  diagnostics: {
+    enable: true,
+    enableExperimental: true,
+    disabled: [],
+    remapPrefix: {},
+    warningsAsHint: [],
+    warningsAsInfo: []
+  },
+  experimental: { procAttrMacros: true },
+  files: { watcher: 'client', excludeDirs: [] },
+  highlightRelated: {
+    references: true,
+    exitPoints: true,
+    breakPoints: true,
+    yieldPoints: true
+  },
+  highlighting: { strings: true },
+  hover: { documentation: true, linksInHover: true },
+  hoverActions: {
+    debug: true,
+    enable: true,
+    gotoTypeDef: true,
+    implementations: true,
+    references: false,
+    run: true
+  },
+  joinLines: {
+    joinElseIf: true,
+    removeTrailingComma: true,
+    unwrapTrivialBlock: true,
+    joinAssignments: true
+  },
+  lens: {
+    debug: true,
+    enable: true,
+    implementations: true,
+    run: true,
+    methodReferences: false,
+    references: false,
+    enumVariantReferences: false,
+    forceCustomCommands: true
+  },
+  linkedProjects: [],
+  lruCapacity: null,
+  notifications: { cargoTomlNotFound: true },
+  procMacro: { enable: true, server: null },
+  runnables: { overrideCargo: null, cargoExtraArgs: [] },
+  rustcSource: null,
+  rustfmt: {
+    extraArgs: [],
+    overrideCommand: null,
+    enableRangeFormatting: false
+  },
+  workspace: { symbol: { search: { scope: 'workspace', kind: 'only_types' } } }
+}
+INFO [10/26/2021, 9:43:06 PM]: PersistentState: {
+  lastCheck: undefined,
+  nightlyReleaseId: undefined,
+  serverVersion: '0.2.792'
+}
+INFO [10/26/2021, 9:43:06 PM]: Using server binary at /Users/ljw/Library/Application Support/Code/User/globalStorage/matklad.rust-analyzer/rust-analyzer-x86_64-apple-darwin
+DEBUG [10/26/2021, 9:43:06 PM]: Checking availability of a binary at /Users/ljw/Library/Application Support/Code/User/globalStorage/matklad.rust-analyzer/rust-analyzer-x86_64-apple-darwin
+DEBUG [10/26/2021, 9:43:06 PM]: /Users/ljw/Library/Application Support/Code/User/globalStorage/matklad.rust-analyzer/rust-analyzer-x86_64-apple-darwin --version: {
+  status: 0,
+  signal: null,
+  output: [ null, 'rust-analyzer 1f47693e0 2021-10-25 stable\n', '' ],
+  pid: 21970,
+  stdout: 'rust-analyzer 1f47693e0 2021-10-25 stable\n',
+  stderr: ''
+}

@@ -74,7 +74,7 @@ Parsing is still a work in progress. If you have a reasonable log format that ca
 
 ## How to distribute
 
-"Sea of logs" can be used in three ways.
+"Sea of logs" can be used in four ways. It uses the standard MIT license to encourage redistribution.
 
 **Normal**. Launch sea-of-logs at https://ljw1004.github.io/seaoflogs/, and click the Load button to explore your logs. As you explore, by interactively setting `filter` and `text` expressions, they are included in the URL. This way you can bookmark the URL to remember where you left off. *NOTE: the URL does *not* include the content of logfiles; it only includes their filenames. When you visit your bookmark, you'll have to re-load whatever logfiles you want.*
 
@@ -88,26 +88,48 @@ $ cp seaoflogs/index.html mylog.html
 $ tail -n +1 ~/logs/* | sed 's/-->/-- >/' >> mylog.html
 ```
 
-"Sea of logs" uses the standard MIT license to allow this self-contained distribution model.
+**Self-hosted**. If you have a webserver that can serve up dynamic content, you can lock down seaoflogs further. Your webserver will serve up a page like this. The idea is that your page can embed seaoflogs in an iframe whose sole permission is `sandbox="allow-scripts"`, i.e. denying it even the ability to make same-origin fetch/XmlHttpRequest API calls other than the always-allowed request for stylesheet and script src. The reason this works is your server can hard-code initial values for seaoflogs (the initial query params, the log content, and the origin for the containing page), hence we don't even need same-origin access to initialize it, and hence we can deny it same-origin privileges.
+```
+<!DOCTYPE html>
+<html>
+<head>
+  <style type="text/css">html, body, iframe {width: 100%; height: 100%; margin: 0; overflow: hidden;}</style>
+  <script>window.onmessage = (e) => history.replaceState(null, null, window.location.href.replace(/\?.*$/, '?' + e.data));</script>
+</head>
+<body>
+  <iframe srcdoc=[ESCAPED_FRAME_CONTENT] sandbox="allow-scripts" />
+</body>
+</html>
+
+// frame content
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="seaoflogs_params" content=[INITIAL_PARAMS] />
+  <meta name="seaoflogs_target" content=[PAGE_ORIGIN] />
+  <meta name="seaoflogs_logs" content=[LOGS] />
+  <link rel="stylesheet" href="seaoflogs.css" />
+  <script src="seaoflogs.js" />
+</head>
+<body />
+</html>
+```
+
 
 
 ## Threat model
 
 *Scenario: my customers have sent me their confidential logfiles. I want to be able to analyze them but I have to be sure that I won't leak their data. I'm specifically not willing to upload the logs to some online log-visualizing website.* In this case you can download a copy of sea-of-logs index.html to your hard disk, audit it to confirm that it makes no network access, open the local file in your web-browser, and load files into it.
 
-*Scenario: my customer sent me a logfile that I don't trust. I want to visualize it but me sure it won't harm me.* I guess you benefit from sea-of-logs already running in the browser sandbox. You could try audit the code to see that logfiles are only ever loaded as data, never executed - but this is html so I suppose it's hard to be sure there aren't sneaky loopholes.
+*Scenario: my customer sent me a logfile that I don't trust. I want to visualize it but me sure it won't harm me.* Sea-of-logs runs in a sandboxed iframe, so even if something was in the logs and sea-of-logs failed to guard it properly, the damage it can wreak is limited by that sandbox. If you're running sea-of-logs on a local file on your hard disk, Chrome's "same-origin" rules will prevent it from accessing other files. If you're using the public sea-of-logs, the same rules will prevent it similarly.
 
 *Scenario: my customer sent me a logfile that I don't trust. Is it safe to construct and view a self-contained sea-of-logs?* In addition to the above, this also opens up concerns whether the self-contained file "breaks out" of just being a log stored inside an html comment. The construction technique `sed 's/-->/-- >/` prevents the log from breaking out of that html comment. Beyond that, there are the same risks as above.
 
-*Scenario: someome sent me a malicious sea-of-logs bookmark. Can I click it?* Sea-of-logs bookmarks have the form `<url>?query=<executable_code>`, and the executable code is executed in the sea-of-logs page. Now if their bookmark takes you to an external site then the risk is no different from clicking on any random link to any random site, which we do all the time. If the bookmark directs you to a file:// url on your hard disk, and that file is seaoflogs.html, then the attacker's query string will be executed in the context of a local file on your hard disk. I don't know what protection browsers have against this. In addition to whatever protections the browser has, sea-of-logs provides its own secondary sandbox for that query-string, but I'm sure there are loopholes.
+*Scenario: someome sent me a malicious sea-of-logs bookmark. Can I click it?* Sea-of-logs bookmarks have the form `<url>?query=<executable_code>`, and the executable code is executed in the sea-of-logs page. Now if their bookmark takes you to an external site then the risk is no different from clicking on any random link to any random site, which we do all the time. If the bookmark directs you to a file:// url on your hard disk, and that file is seaoflogs.html, then the attacker's query string will be executed in the context of a local file on your hard disk. The same "same-origin" rules as above protect you.
 
 *Scenario: someone uploaded a malicious self-contained file. Can I click it?* If they uploaded a self-contained sea-of-logs then they could have added malicious code, and you'd trust this just the same as trusting any random website. If they ask you to download the file, it's the same as downloading any random html from the internet and opening it locally.
 
-*Scenario: I want to host seaoflogs on my website. How can I be sure it won't be a vector for XSS attacks?* You could place seaoflogs in an `<iframe sandbox='allow-scripts' />`. This way it won't be able to make any network requests. However, seaoflogs uses the window.location query params to record
-its settings and this isn't allowed in an iframe. As a workaround, you can set `<meta name="seaoflogs_params" content="id=...&text=..." />` to
-tell the seaoflogs iframe which initial params it should use; later, whenever it wants its part of the window.location params to be changed, it'll request
-this by `window.top.postMessage(newparams)` to which you'll have to respond.
-
+*Scenario: I want to host seaoflogs on my website. How can I be sure it won't be a vector for XSS attacks to other parts of my domain?* You should use the "self-hosted" model described above. This way, you'll see that it runs entirely in a sandboxed iframe which lacks same-origin privileges to the rest of your domain.
 
 
 ## Contributing
@@ -117,4 +139,3 @@ No idea. I've never yet build any projects where people were excited enough to c
 * I wonder if the entire message-renderer and svg-renderer could become lazy too, like the background-renderer is at the moment? Then it could handle vastly larger log-files.
 * Are there other formats for LSP-traces that need to be accepted?
 * If you have a logfile that can't be parsed, you could create an issue and paste the log and I'll see how to ingest it. Or contribute ingestion code yourself. The date-parsing code is particularly un-general.
-* It's a shame that we have to ignore the date portion of timestamps to accomodate LSP. I can't see any way around it.

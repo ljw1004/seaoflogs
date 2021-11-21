@@ -1,186 +1,221 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <title>Sea of logs</title>
-  <style type="text/css">
-    html {
-      height: 100%;
-      width: 100%;
-      margin: 0;
-    }
+  <head>
+    <title>Sea of logs</title>S
+    <style type="text/css">
+      html, body, iframe {width: 100%; height: 100%; overflow: hidden; margin: 0; border: none;}
+    </style>
+    <script>
+      window.onload = (_) => {
+        const params = new URLSearchParams(window.location.search);
+        const target = location.origin;
+        const logs = [...document.getElementsByTagName("body")[0].childNodes]
+          .filter((c) => c.nodeType == Node.COMMENT_NODE)
+          .reverse()[0].data;
+        document.getElementsByTagName("iframe")[0].contentWindow.init(params, target, logs);
+      }
 
-    body {
-      margin: 0;
-      height: 100%;
-      width: 100%;
-      background-color: white;
-      color: black;
-    }
+      window.onmessage = (e) => {
+        console.log(`ONMESSAGE from origin=${e.origin}`);
+        const url = window.location.href.replace(/\?.*$/, "") + (e.data.length == 0 ? "" : "?" + e.data);
+        history.replaceState(null, null, url);
+      }
+  </script>
+  </head>
+<body>
+  <iframe sandbox="allow-scripts allow-same-origin" srcdoc="&lt;!DOCTYPE html&gt;
+    &lt;style type=&apos;text/css&apos;&gt;html {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+  }
 
-    table {
-      height: 100%;
-      width: 100%;
-      border-collapse: collapse;
-    }
+  body {
+    margin: 0;
+    height: 100%;
+    width: 100%;
+    background-color: white;
+    color: black;
+  }
 
-    #left {
-      position: fixed;
-      width: 20%;
-      height: 100%;
-      background-color: lightgray;
-      vertical-align: top;
-      overflow: hidden;
-      white-space: nowrap;
-    }
+  table {
+    height: 100%;
+    width: 100%;
+    border-collapse: collapse;
+  }
 
-    #perf {
-      display: none;
-      font-size: small;
-    }
+  #left {
+    position: fixed;
+    width: 20%;
+    height: 100%;
+    background-color: lightgray;
+    vertical-align: top;
+    overflow: hidden;
+    white-space: nowrap;
+  }
 
-    #right {
-      margin: 0;
-      margin-left: 20%;
-      width: 80%;
-      font-size: small;
-      padding: 0;
-    }
+  #perf {
+    display: none;
+    font-size: small;
+  }
 
-    #title a {
-      color: black;
-      text-decoration: none;
-    }
+  #right {
+    margin: 0;
+    margin-left: 20%;
+    width: 80%;
+    font-size: small;
+    padding: 0;
+  }
 
-    #title a:visited {
-      color: black;
-    }
+  #title a {
+    color: black;
+    text-decoration: none;
+  }
 
-    .message,
-    .background {
-      margin: 0.5ex;
-    }
+  #title a:visited {
+    color: black;
+  }
 
-    .messagetext {
-      cursor: grab;
-    }
+  .message,
+  .background {
+    margin: 0.5ex;
+  }
 
-    .messagetime {
-      cursor: zoom-in;
-    }
+  .messagetext {
+    cursor: grab;
+  }
 
-    #backgrounds,
-    #messages {
-      position: absolute;
-      width: 80%;
-      height: 100%;
-      margin: 0;
-    }
+  .messagetime {
+    cursor: zoom-in;
+  }
 
-    #connectors {
-      position: absolute;
-      width: 80%;
-      height: 100%;
-      margin: 0;
-    }
+  #backgrounds,
+  #messages {
+    position: absolute;
+    width: 80%;
+    height: 100%;
+    margin: 0;
+  }
 
-    #left textarea {
-      font-family: sans-serif;
-      width: 92%;
-    }
+  #connectors {
+    position: absolute;
+    width: 80%;
+    height: 100%;
+    margin: 0;
+  }
 
-    .messagetime,
-    .logcount {
-      font-size: xx-small;
-      color: gray;
-      font-family: monospace;
-    }
+  #left textarea {
+    font-family: sans-serif;
+    width: 92%;
+  }
 
-    .error {
-      color: red;
-      background-color: #500000;
-      border: solid thin red;
-      margin: 0.5ex 1em 0.5ex 0.2em;
-      font-size: small;
-      padding: 0.5ex;
-    }
+  .messagetime,
+  .logcount {
+    font-size: xx-small;
+    color: gray;
+    font-family: monospace;
+  }
 
-    #popup {
-      font-size: x-small;
-      font-family: monospace;
-      position: absolute;
-      white-space: pre;
-      display: none;
-      max-width: 50em;
-      max-height: 20em;
-      overflow: auto;
-      border: solid thin black;
-      background-color: #F0F0F0;
-    }
+  .error {
+    color: red;
+    background-color: #500000;
+    border: solid thin red;
+    margin: 0.5ex 1em 0.5ex 0.2em;
+    font-size: small;
+    padding: 0.5ex;
+  }
 
-    #menu {
-      position: fixed;
-      display: none;
-    }
+  #popup {
+    font-size: x-small;
+    font-family: monospace;
+    position: absolute;
+    white-space: pre;
+    display: none;
+    max-width: 50em;
+    max-height: 20em;
+    overflow: auto;
+    border: solid thin black;
+    background-color: #F0F0F0;
+  }
 
-    #menu select::-webkit-scrollbar {
-      display: none;
-    }
+  #menu {
+    position: fixed;
+    display: none;
+  }
 
-    #menu select::-moz-scrollbar {
-      display: none;
-    }
+  #menu select::-webkit-scrollbar {
+    display: none;
+  }
 
-    #menu select::-o-scrollbar {
-      display: none;
-    }
+  #menu select::-moz-scrollbar {
+    display: none;
+  }
 
-    #menu select::-google-ms-scrollbar {
-      display: none;
-    }
+  #menu select::-o-scrollbar {
+    display: none;
+  }
 
-    #menu select::-khtml-scrollbar {
-      display: none;
-    }
+  #menu select::-google-ms-scrollbar {
+    display: none;
+  }
 
-    #menu #autocomplete {
-      font-size: small;
-      background-color: #f0f0f0;
-      border: solid thin black;
-      padding: 0.2ex;
-      z-index: 100;
-      box-shadow: 0 0 1ex 1ex black;
-    }
+  #menu select::-khtml-scrollbar {
+    display: none;
+  }
 
-    .autocomplete_name {
-      padding-right: 1em;
-    }
+  #menu #autocomplete {
+    font-size: small;
+    background-color: #f0f0f0;
+    border: solid thin black;
+    padding: 0.2ex;
+    z-index: 100;
+    box-shadow: 0 0 1ex 1ex black;
+  }
 
-    .autocomplete_hint {
-      font-style: italic;
-      color: darkgreen;
-    }
+  .autocomplete_name {
+    padding-right: 1em;
+  }
 
-    #load {
-      opacity: 0;
-      position: absolute;
-      z-index: -1;
-    }
+  .autocomplete_hint {
+    font-style: italic;
+    color: darkgreen;
+  }
 
-    #loadbutton {
-      font-size: smaller;
-      cursor: arrow;
-      background-color: #f0f0f0;
-      padding: 0.2ex;
-      border: solid thin black;
-      border-radius: 0.5ex;
-    }
+  #load {
+    opacity: 0;
+    position: absolute;
+    z-index: -1;
+  }
 
-    #loadbutton:hover {
-      background-color: #f0f0FF;
-    }
-  </style>
-  <script>
-'use strict';
+  #loadbutton {
+    font-size: smaller;
+    cursor: arrow;
+    background-color: #f0f0f0;
+    padding: 0.2ex;
+    border: solid thin black;
+    border-radius: 0.5ex;
+  }
+
+  #loadbutton:hover {
+    background-color: #f0f0FF;
+  }
+  &lt;/style&gt;
+    &lt;script&gt;&apos;use strict&apos;;
+
+// How does one host the seaoflogs library? It is designed to run in a sandboxed
+// iframe which has seaoflogs.js and seaoflogs.css and an empty body, and which has
+// only a small number of connection-points to the host outside that sandbox:
+// (1) When the user interacts with seaoflogs to alter the drillstate, seaoflogs wants
+// to store the current drillstate in the browser&apos;s url, but being in a sandbox it&apos;s
+// not allowed to - hence it uses postMessage to request its host to alter the url;
+// (2) When seaoflogs first starts up it must be told the initial url drillstate,
+// and the target to which send updates via postMessage, and must be given any log
+// content with which to populate itself initially. This is done either by having
+// a same-origin host invoke its .init(params, target, logs) method, or by specifying
+// the three declaratively in three tags &lt;meta name=&quot;seaoflogs_params&quot; content=&quot;...&quot;/&gt;
+// and name=&quot;seaoflogs_target&quot; and &quot;seaoflogs_logs&quot;. The tag route is appealing
+// because the sandbox doesn&apos;t even need any same-origin permissions.
+
 
 // ===================================================================
 // ===================================================================
@@ -188,16 +223,16 @@
 // ===================================================================
 // GLOBAL MUTABLE STATE
 // In addition to these variables, the URL query params also provide
-// one state field 'details' used by render_popup to know the details
+// one state field &apos;details&apos; used by render_popup to know the details
 // function.
 // ===================================================================
 // ===================================================================
 // ===================================================================
 // ===================================================================
 
-/** a global list of all messages from all known logs, even if they're hidden (unchecked).
+/** a global list of all messages from all known logs, even if they&apos;re hidden (unchecked).
  * It is initially empty; it is only ever appended, upon window.onload and clicking the
- * "load" button.
+ * &quot;load&quot; button.
  */
 let global_messages = [];
 
@@ -205,8 +240,8 @@ let global_messages = [];
 let global_log_counts = {};
 
 /** global autocomplete dictionary, constructed by control_handler after re-rendering
- * current messages. It is a map {member_name -> {hint:string, nested:dictionary}}
- * We treat an array [1,2,3] as a dictionary with a single member {ELEMENT -> [element_types]}
+ * current messages. It is a map {member_name -&gt; {hint:string, nested:dictionary}}
+ * We treat an array [1,2,3] as a dictionary with a single member {ELEMENT -&gt; [element_types]}
  */
 let global_current_dictionary = {};
 
@@ -224,6 +259,11 @@ let global_resize_expected_height = null;
  */
 let global_popup_message_index = null;
 
+/** When we want to alter the url query params, we&apos;ll do it by postMessage to this
+ * target. Initialized by the &apos;init&apos; method.
+ */
+let global_target = null;
+
 // ===================================================================
 // ===================================================================
 // ===================================================================
@@ -234,43 +274,29 @@ let global_popup_message_index = null;
 // ===================================================================
 // ===================================================================
 
-// We'll ingest addendum logs upon startup, and update controls from the uri:
-window.onload = (event) => window_load_handler(event);
-// If resizes causes messages to wrap, we'll need to re-render them:
-window.onresize = (event) => control_handler(event);
-// If user presses Escape, hide all active pops:
-document.onkeydown = (event) => hide_popups_handler(event);
-// We synthesize background colors lazily with this function:
-document.addEventListener("scroll", () => render_missing_backgrounds());
+window.onload = (_) =&gt; {
+  const params = document.getElementsByTagName(&quot;meta&quot;)[&quot;seaoflogs_params&quot;]?.content;
+  const target = document.getElementsByTagName(&quot;meta&quot;)[&quot;seaoflogs_target&quot;]?.content;
+  const logs = document.getElementsByTagName(&quot;meta&quot;)[&quot;seaoflogs_logs&quot;]?.content;
+  if (params != null || target != null || logs != null) {
+      init(new URLSearchParams(params), target, logs);
+  }
+}
 
-// ===================================================================
-// ===================================================================
-// ===================================================================
-// ===================================================================
-// EVENT HANDLERS
-// ===================================================================
-// ===================================================================
-// ===================================================================
-// ===================================================================
-
-/** Called by window.onload. Job is to ingest any logs in the addendum,
- * and set up controls from the URI params.
+/** This entry-point may be called either directly from a same-origin host,
+ * or by the window.onload handler
  */
-function window_load_handler(event) {
+function init(params, target, logs_src) {
+  // Chrome treats local files specially: they all have target &apos;null&apos; for purposes of postMessage
+  global_target = (window.chrome != null &amp;&amp; target == &quot;file://&quot;) ? null : target;
   global_messages = [];
   global_log_counts = {};
 
-  // The addendum is whatever was appended to the end of this source file, after the final <!--
-  // Even though we wrote the final <!-- after the </html>, Chrome actually promotes that
-  // comment tag to be the last child of the body. Thanks, Chrome!
-  const addendum = [...document.getElementsByTagName("body")[0].childNodes]
-    .filter((c) => c.nodeType == Node.COMMENT_NODE)
-    .reverse()[0].data;
   let acc = [];
-  let log = "(default)";
-  const lines = addendum.split(/\r?\n/);
+  let log = &quot;(default)&quot;;
+  const lines = logs_src.split(/\r?\n/);
   for (const line of lines) {
-    const match = line.match(/^==> (.*) <==$/);
+    const match = line.match(/^==&gt; (.*) &lt;==$/);
     if (match) {
       global_messages = global_messages.concat(parse_log(log, acc));
       log = logname_from_filepath(match[1]);
@@ -283,34 +309,51 @@ function window_load_handler(event) {
   global_messages = global_messages.concat(parse_log(log, acc));
   reconcile_log_dates(global_messages);
   global_log_counts = tally_logs(global_messages);
-  for (let i=0; i<global_messages.length; i++) global_messages[i].gindex=i;
+  for (let i=0; i&lt;global_messages.length; i++) global_messages[i].gindex=i;
 
   render_page();
   render_controls();
   document.getElementById(
-    "loading"
+      &quot;loading&quot;
   ).innerText = `Loading ${global_messages.length} messages...`;
-  const params = new URLSearchParams(document.getElementsByTagName("meta")["seaoflogs_params"]?.content || window.location.search);
   write_controls(params);
-  control_handler(event);
+  control_handler({type: &apos;init&apos;});
+
+  // If resizes causes messages to wrap, we&apos;ll need to re-render them:
+  window.onresize = (event) =&gt; control_handler(event);
+  // If user presses Escape, hide all active pops:
+  document.onkeydown = (event) =&gt; hide_popups_handler(event);
+  // We synthesize background colors lazily with this function:
+  document.addEventListener(&quot;scroll&quot;, () =&gt; render_missing_backgrounds());
 }
+
+// ===================================================================
+// ===================================================================
+// ===================================================================
+// ===================================================================
+// EVENT HANDLERS
+// ===================================================================
+// ===================================================================
+// ===================================================================
+// ===================================================================
+
 
 /** Called by a click on the Load button. Job is to ingest the log,
  * update controls, and re-render.
  */
 function load_button_handler(event) {
-  const [file] = document.querySelector("input[type=file]").files;
+  const [file] = document.querySelector(&quot;input[type=file]&quot;).files;
   if (!file) return;
   const reader = new FileReader();
   reader.addEventListener(
-    "load",
-    (event) => {
+    &quot;load&quot;,
+    (event) =&gt; {
       const log = logname_from_filepath(file.name);
       const lines = reader.result.split(/\r?\n/);
       global_messages = global_messages.concat(parse_log(log, lines));
       reconcile_log_dates(global_messages);
       global_log_counts = tally_logs(global_messages);
-      for (let i=0; i<global_messages.length; i++) global_messages[i].gindex=i;
+      for (let i=0; i&lt;global_messages.length; i++) global_messages[i].gindex=i;
       render_controls();
       const params = new URLSearchParams(window.location.search);
       write_controls(params);
@@ -324,10 +367,10 @@ function load_button_handler(event) {
 /** This is called on changes to controls. Its main response is to recompute
  * the message-list. This method debounces the recoputation.
  * (1) If the user makes a change in a textarea control e.g. the filter or the text,
- *     then we will recompute the message-list. Also we'll adjusts the height
+ *     then we will recompute the message-list. Also we&apos;ll adjusts the height
  *     of the textarea to fit everything.
  * (2) If the user clicks a log button or dropdown, or alters the time,
- *     then again we'll recompute the message-list.
+ *     then again we&apos;ll recompute the message-list.
  * (3) If the user resizes the window, then surprisingly we might need a debounced
  *     recompute of the message-list. In particular if the resize causes
  *     messages to wrap differently (detected by the new height of the bottom
@@ -339,115 +382,95 @@ function load_button_handler(event) {
  *     of the message-list
  */
 function control_handler(event) {
-  // Commonly, we'll use a timeout that's snappy for small message-lists
+  // Commonly, we&apos;ll use a timeout that&apos;s snappy for small message-lists
   // that can be recomputed quickly, and slower for larger lists.
   const displayed_message_length =
-    document.getElementById("messages").childElementCount;
+    document.getElementById(&quot;messages&quot;).childElementCount;
   const message_burden =
     displayed_message_length == 0
       ? global_messages.length
       : displayed_message_length;
-  let timeout = message_burden > 10000 ? 1000 : message_burden > 3000 ? 250 : 50;
+  let timeout = message_burden &gt; 10000 ? 1000 : message_burden &gt; 3000 ? 250 : 50;
   let update_url = true;
 
-  if (event.type == "load") {
-    // upon load, we only have a short timeout to allow the screen to render;
+  if (event.type == &quot;init&quot;) {
+    // upon init, we only have a short timeout to allow the screen to render;
     // we want the messages to be recomputed as soon as rendering is done.
     timeout = 1;
-  } else if (event.type == "resize") {
+  } else if (event.type == &quot;resize&quot;) {
     // upon window-resize, if the wrapping (hence, vertical height) of the message-list
-    // hasn't changed then there's no need to recompute anything.
-    const lastChild = document.getElementById("messages").lastChild;
+    // hasn&apos;t changed then there&apos;s no need to recompute anything.
+    const lastChild = document.getElementById(&quot;messages&quot;).lastChild;
     const height =
       lastChild == null ? 0 : lastChild.offsetTop + lastChild.offsetHeight;
     if (height == global_resize_expected_height) return;
-    // If we do need to recompute in response to window-resize, we'll do so with
+    // If we do need to recompute in response to window-resize, we&apos;ll do so with
     // a fairly high timeout.
     timeout = 250;
     update_url = false;
   } else if (
-    event.type == "change" &&
-    (event.target.id == "select_start" || event.target.id == "select_end")
+    event.type == &quot;change&quot; &amp;&amp;
+    (event.target.id == &quot;select_start&quot; || event.target.id == &quot;select_end&quot;)
   ) {
     // user clicked on a start/end dropdown. That has already had the effect of updating
     // the start/end inputs, but bypassed their normal firing of events, which is why
     // we handle it.
-    // There's no need for debouncing here.
+    // There&apos;s no need for debouncing here.
     timeout = 1;
-  } else if (event.type == "change" && event.target.id == "time_menu") {
+  } else if (event.type == &quot;change&quot; &amp;&amp; event.target.id == &quot;time_menu&quot;) {
     // user clicked on a time popup. Again, no need for debouncing.
     timeout = 1;
-  } else if (event.type == "input" && event.target.id == "input_start") {
-    // user typed in the time boxes. Uses normal debounce. Also, deselect the "select" dropdown
-    document.getElementById("select_start").selectedIndex = 0;
-  } else if (event.type == "input" && event.target.id == "input_end") {
-    // user typed in the time boxes. Uses normal debounce. Also, deselect the "select" dropdown
-    document.getElementById("select_end").selectedIndex = 0;
-  } else if (event.type == "input" && event.target.tagName == "TEXTAREA") {
+  } else if (event.type == &quot;input&quot; &amp;&amp; event.target.id == &quot;input_start&quot;) {
+    // user typed in the time boxes. Uses normal debounce. Also, deselect the &quot;select&quot; dropdown
+    document.getElementById(&quot;select_start&quot;).selectedIndex = 0;
+  } else if (event.type == &quot;input&quot; &amp;&amp; event.target.id == &quot;input_end&quot;) {
+    // user typed in the time boxes. Uses normal debounce. Also, deselect the &quot;select&quot; dropdown
+    document.getElementById(&quot;select_end&quot;).selectedIndex = 0;
+  } else if (event.type == &quot;input&quot; &amp;&amp; event.target.tagName == &quot;TEXTAREA&quot;) {
     // User typed in a textbox.
-    // We'll immediately adjust the size of the textbox to fit whatever's there,
+    // We&apos;ll immediately adjust the size of the textbox to fit whatever&apos;s there,
     // and update the autocomplete, and kick off a recompute using the normal debounce.
-    event.target.style.height = "";
-    event.target.style.height = event.target.scrollHeight + "px";
+    event.target.style.height = &quot;&quot;;
+    event.target.style.height = event.target.scrollHeight + &quot;px&quot;;
   } else if (
-    event.type == "change" &&
-    (event.target.id.startsWith("logcheck") ||
-      event.target.id.startsWith("logalign"))
+    event.type == &quot;change&quot; &amp;&amp;
+    (event.target.id.startsWith(&quot;logcheck&quot;) ||
+      event.target.id.startsWith(&quot;logalign&quot;))
   ) {
     // clicked on a checkbox or an alignment button for logs.
-    // We'll use standard debounce.
+    // We&apos;ll use standard debounce.
   } else {
-    throw new Error(`control_handler ${event.target.id || "?"}.${event.type}`);
+    throw new Error(`control_handler ${event.target.id || &quot;?&quot;}.${event.type}`);
   }
 
   // update URL
   const params = read_controls();
   if (update_url) {
-    // The window.location url had the form '<url>?search' where some of the search belongs to
-    // seaoflogs and some doesn't. We will want to construct a new url where those belonging
-    // to seaoflogs have been reset according to params. If the the resulting url has no search,
-    // we want to remove the ? entirely.
-    let search = new URLSearchParams(window.location.search);
-    for (const k of ["filter", "start", "end", "text", "id", "color"]) {
-      search.delete(k);
-    }
-    for (const k of [...search.keys()].filter(k => k.startsWith("log_"))) {
-      search.delete(k);
-    }
-    for (const [k, v] of params.entries()) {
-      search.append(k, v);
-    }
-    const url = window.location.href.replace(/\?.*$/, "") +
-      (([...search.keys()].length == 0) ? '' : '?' + search.toString());
-    if (document.getElementsByTagName("meta")["seaoflogs_params"] == null) {
-      history.replaceState(null, null, url);
-    } else {
-      window.top.postMessage(params.toString(), '*');
-    }
+    window.top.postMessage(params.toString(), global_target);
   }
 
   clearTimeout(global_debounce_timeout);
-  global_debounce_timeout = setTimeout(() => {
+  global_debounce_timeout = setTimeout(() =&gt; {
     // figure out the controls
-    const filter = params.has("filter") ? params.get("filter") : defaults.filter;
-    const start = params.has("start") ? params.get("start") : defaults.start;
-    const end = params.has("end") ? params.get("end") : defaults.end;
-    const text = params.has("text") ? params.get("text") : defaults.text;
-    const id = params.has("id") ? params.get("id") : defaults.id;
-    const color = params.has("color") ? params.get("color") : defaults.color;
+    const filter = params.has(&quot;filter&quot;) ? params.get(&quot;filter&quot;) : defaults.filter;
+    const start = params.has(&quot;start&quot;) ? params.get(&quot;start&quot;) : defaults.start;
+    const end = params.has(&quot;end&quot;) ? params.get(&quot;end&quot;) : defaults.end;
+    const text = params.has(&quot;text&quot;) ? params.get(&quot;text&quot;) : defaults.text;
+    const id = params.has(&quot;id&quot;) ? params.get(&quot;id&quot;) : defaults.id;
+    const color = params.has(&quot;color&quot;) ? params.get(&quot;color&quot;) : defaults.color;
     let log_filter={}, log_align={};
     for (const [log, count] of Object.entries(global_log_counts)) {
       const key = `log_${log}`;
       if (params.has(key)) {
-        log_filter[log] = !params.get(key).startsWith("hide_");
-        log_align[log] = params.get(key).replace(/^hide_/, "");
+        log_filter[log] = !params.get(key).startsWith(&quot;hide_&quot;);
+        log_align[log] = params.get(key).replace(/^hide_/, &quot;&quot;);
       } else {
-        log_filter[log] = count < defaults.threshold_for_visible;
-        log_align[log] = (log == "server" || log.endsWith(":server")) ? defaults.align_for_server_log : defaults.align_for_other_logs;
+        log_filter[log] = count &lt; defaults.threshold_for_visible;
+        log_align[log] = (log == &quot;server&quot; || log.endsWith(&quot;:server&quot;)) ? defaults.align_for_server_log : defaults.align_for_other_logs;
       }
     }
     let start_time = null, end_time = null, time_exn = null;
-    if (start.charAt(0) == "-") {
+    if (start.charAt(0) == &quot;-&quot;) {
       try {
         end_time = parseTimeControl(end, global_messages);
       } catch (e) {
@@ -474,9 +497,9 @@ function control_handler(event) {
     const text_fn = make_fn(text);
     const id_fn = make_fn(id);
     const color_fn = make_fn(color);
-    const filter_fn = make_fn(filter || "true");
-    const filter2_fn = (m) => log_filter[m.log] && filter_fn(m);
-    const align_fn = (m) => log_align[m.log];
+    const filter_fn = make_fn(filter || &quot;true&quot;);
+    const filter2_fn = (m) =&gt; log_filter[m.log] &amp;&amp; filter_fn(m);
+    const align_fn = (m) =&gt; log_align[m.log];
     // render into html
     const t0 = performance.now();
     const { messages, filter_exn } = filter_and_sort_messages(
@@ -494,45 +517,45 @@ function control_handler(event) {
       align_fn
     );
     const t2 = performance.now();
-    render_error(document.getElementById("error_filter"), filter_exn);
-    render_error(document.getElementById("error_time"), time_exn);
-    render_error(document.getElementById("error_text"), text_exn);
-    render_error(document.getElementById("error_id"), id_exn);
-    render_error(document.getElementById("error_color"), color_exn);
+    render_error(document.getElementById(&quot;error_filter&quot;), filter_exn);
+    render_error(document.getElementById(&quot;error_time&quot;), time_exn);
+    render_error(document.getElementById(&quot;error_text&quot;), text_exn);
+    render_error(document.getElementById(&quot;error_id&quot;), id_exn);
+    render_error(document.getElementById(&quot;error_color&quot;), color_exn);
     const t3 = performance.now();
     render_missing_backgrounds();
     const t4 = performance.now();
     // update or hide the persistent details popup
     const mindex = messages.findIndex(
-      (m) => m.gindex == global_popup_message_index
+      (m) =&gt; m.gindex == global_popup_message_index
     );
-    if (mindex == -1 && messages.length > 0) render_popup(null);
-    else render_popup(document.getElementById("messages").children[mindex]);
+    if (mindex == -1 &amp;&amp; messages.length &gt; 0) render_popup(null);
+    else render_popup(document.getElementById(&quot;messages&quot;).children[mindex]);
     // set some global values
     const t5 = performance.now();
     global_current_dictionary = build_dictionary(messages);
     const t6 = performance.now();
-    const lastChild = document.getElementById("messages").lastChild;
+    const lastChild = document.getElementById(&quot;messages&quot;).lastChild;
     global_resize_expected_height =
       lastChild == null ? 0 : lastChild.offsetTop + lastChild.offsetHeight;
     // render perf
-    const perfElement = document.getElementById("perf");
+    const perfElement = document.getElementById(&quot;perf&quot;);
     let perf = ``;
     perf += `filter_msgs [${(t1-t0).toFixed()}ms]\n`;
     perf += `render_msgs [${(t2-t1).toFixed()}ms]\n`;
     perf += `autocomplet [${(t6-t4).toFixed()}ms]`;
     perfElement.innerText = perf;
-    perfElement.style.display = (t5 - t0 > 500) ? 'block' : 'none';
+    perfElement.style.display = (t5 - t0 &gt; 500) ? &apos;block&apos; : &apos;none&apos;;
   }, timeout);
 }
 
-/** called by a messagetext's onclick handler, for
+/** called by a messagetext&apos;s onclick handler, for
  * when the user clicks on a message to toggle its details popup.
  */
 function message_handler(event, messageDiv, gindex) {
   event.stopPropagation();
-  document.getElementById("menu").style.display = "none";
-  if (global_popup_message_index == gindex && document.getElementById('popup').style.display == 'block') {
+  document.getElementById(&quot;menu&quot;).style.display = &quot;none&quot;;
+  if (global_popup_message_index == gindex &amp;&amp; document.getElementById(&apos;popup&apos;).style.display == &apos;block&apos;) {
     global_popup_message_index = -1;
     render_popup(null);
   } else {
@@ -541,34 +564,34 @@ function message_handler(event, messageDiv, gindex) {
   }
 }
 
-/** Called by messagetime's onclick handler, for when
+/** Called by messagetime&apos;s onclick handler, for when
  * the user clicks on a time to show a popup which then
  * is able to set the start/end times.
  */
 function time_handler(event, time) {
   event.stopPropagation();
   render_popup(null);
-  const menu = document.getElementById("menu");
-  menu.style.display = "block";
-  let html = `<select id='time_menu' multiple size=2>`;
-  html += `<option value='start'>set start</option>`;
-  html += `<option value='end'>set end</option>`;
-  html += `</select>`;
+  const menu = document.getElementById(&quot;menu&quot;);
+  menu.style.display = &quot;block&quot;;
+  let html = `&lt;select id=&apos;time_menu&apos; multiple size=2&gt;`;
+  html += `&lt;option value=&apos;start&apos;&gt;set start&lt;/option&gt;`;
+  html += `&lt;option value=&apos;end&apos;&gt;set end&lt;/option&gt;`;
+  html += `&lt;/select&gt;`;
   menu.innerHTML = html;
-  const {x, y} = boundPopup(menu, event.target, 'left');
+  const {x, y} = boundPopup(menu, event.target, &apos;left&apos;);
   menu.style.top = `${y}px`;
   menu.style.left = `${x}px`;
-  const select = menu.getElementsByTagName("select")[0];
-  select.addEventListener("change", (event) => {
-    menu.style.display = "none";
+  const select = menu.getElementsByTagName(&quot;select&quot;)[0];
+  select.addEventListener(&quot;change&quot;, (event) =&gt; {
+    menu.style.display = &quot;none&quot;;
     const value = select.options[select.selectedIndex].value;
     const input =
-      value == "end"
-        ? document.getElementById("input_end")
-        : document.getElementById("input_start");
+      value == &quot;end&quot;
+        ? document.getElementById(&quot;input_end&quot;)
+        : document.getElementById(&quot;input_start&quot;);
     input.value = formatTimeControl(time, global_messages);
-    // we'll also reset the input-time-control dropdown back to "(select)"
-    document.getElementById(value == "end" ? "select_end" : "select_start").selectedIndex = 0;
+    // we&apos;ll also reset the input-time-control dropdown back to &quot;(select)&quot;
+    document.getElementById(value == &quot;end&quot; ? &quot;select_end&quot; : &quot;select_start&quot;).selectedIndex = 0;
     control_handler(event);
   });
 }
@@ -581,63 +604,63 @@ function time_handler(event, time) {
  * We often end up getting both Click and Focus e.g. when we gain focus from elsewhere. No matter.
  */
 function autocomplete_handler(event) {
-  const menuElement = document.getElementById("menu");
+  const menuElement = document.getElementById(&quot;menu&quot;);
 
-  if (event.type == "keyup" && event.key == "Escape") {
+  if (event.type == &quot;keyup&quot; &amp;&amp; event.key == &quot;Escape&quot;) {
     // this handler is invoked to show autocomplete in response to keystrokes,
-    // but if the keystroke was an escape then we won't!
+    // but if the keystroke was an escape then we won&apos;t!
     return;
   }
   // This is the entire text leading up to the caret:
   let text = event.target.value.substring(0, event.target.selectionStart);
-  // We won't be fancy about nesting, but we will track
-  // whether there's an unbalanced number of string quote delimeters
+  // We won&apos;t be fancy about nesting, but we will track
+  // whether there&apos;s an unbalanced number of string quote delimeters
   if (
-    text.split('"').length % 2 == 0 ||
-    text.split("'").length % 2 == 0 ||
-    text.split("`").length % 2 == 0
+    text.split(&apos;&quot;&apos;).length % 2 == 0 ||
+    text.split(&quot;&apos;&quot;).length % 2 == 0 ||
+    text.split(&quot;`&quot;).length % 2 == 0
   )
-    text = "";
+    text = &quot;&quot;;
   // Replace all [...] with .ELEMENT and replace all ?. with .
-  text = text.replace(/\[[^\]]*\]/g, ".ELEMENT");
-  text = text.replace(/\?\./g, ".");
+  text = text.replace(/\[[^\]]*\]/g, &quot;.ELEMENT&quot;);
+  text = text.replace(/\?\./g, &quot;.&quot;);
   // Find the longest identifier+dot string leading to the caret
   const match = text.match(
     /(([a-zA-Z_][a-zA-Z0-9_]*\.)*[a-zA-Z_][a-zA-Z0-9_]*\.?)$/
   );
-  text = match ? match[1] : "";
-  const identifiers = text.split(".");
+  text = match ? match[1] : &quot;&quot;;
+  const identifiers = text.split(&quot;.&quot;);
   // Walk the identifier chain to find autocomplete up to the second-last identifier in the chain.
   let current = global_current_dictionary;
-  for (let i = 0; current != null && i < identifiers.length - 1; i++) {
+  for (let i = 0; current != null &amp;&amp; i &lt; identifiers.length - 1; i++) {
     current = current[identifiers[i]]?.nested;
   }
   if (current == null) {
-    menuElement.style.display = "none";
+    menuElement.style.display = &quot;none&quot;;
     return;
   }
   // The last identifier in the chain is the one that the caret is currently on,
-  // e.g. for "foo.|" the last identifier will be the empty string, and for "foo|" it will be "foo".
-  // We'll use it as a filter to only show some options.
+  // e.g. for &quot;foo.|&quot; the last identifier will be the empty string, and for &quot;foo|&quot; it will be &quot;foo&quot;.
+  // We&apos;ll use it as a filter to only show some options.
   let filter = identifiers.pop();
-  let html = `<table id='autocomplete'>`;
+  let html = `&lt;table id=&apos;autocomplete&apos;&gt;`;
   for (const [k, v] of Object.entries(current)) {
     if (k.startsWith(filter)) {
-      html += `<tr><td class="autocomplete_name">${
-        k == "ELEMENT" ? "[]" : esc(k)
-      }</td><td class="autocomplete_hint">${esc(v.hint)}</td></tr>`;
+      html += `&lt;tr&gt;&lt;td class=&quot;autocomplete_name&quot;&gt;${
+        k == &quot;ELEMENT&quot; ? &quot;[]&quot; : esc(k)
+      }&lt;/td&gt;&lt;td class=&quot;autocomplete_hint&quot;&gt;${esc(v.hint)}&lt;/td&gt;&lt;/tr&gt;`;
     }
   }
-  html += `</table>`;
+  html += `&lt;/table&gt;`;
   // And render it!
   menuElement.innerHTML = html;
-  menuElement.style.display = "block";
-  const { x, y } = boundPopup(menuElement, event.target, "left");
+  menuElement.style.display = &quot;block&quot;;
+  const { x, y } = boundPopup(menuElement, event.target, &quot;left&quot;);
   menuElement.style.top = `${y}px`;
   menuElement.style.left = `${x + event.target.offsetWidth}px`;
 }
 
-/** Called by the "body" onclick handler, for when the
+/** Called by the &quot;body&quot; onclick handler, for when the
  * user clicks in the background to dismiss any popups.
  * Also called by the document keydown event handler, for
  * when the user presses escape to dismiss popups.
@@ -645,27 +668,27 @@ function autocomplete_handler(event) {
 function hide_popups_handler(event) {
   let dismiss_menu = false;
   let dismiss_popup = false;
-  if (event.type == "keydown" && event.key == "Escape") {
+  if (event.type == &quot;keydown&quot; &amp;&amp; event.key == &quot;Escape&quot;) {
     // will dismiss them both
     dismiss_menu = true;
     dismiss_popup = true;
-  } else if (event.type == "click") {
+  } else if (event.type == &quot;click&quot;) {
     // the time menu will be dismissed by any click not on it
     // the autocomplete popup will be dismissed by any click not on it and not on a textarea
-    const menu = document.getElementById("menu");
+    const menu = document.getElementById(&quot;menu&quot;);
     if (event.target.offsetParent != menu) dismiss_menu = true;
     if (
-      menu.firstChild?.id != "time_menu" &&
-      event.target.tagName == "TEXTAREA"
+      menu.firstChild?.id != &quot;time_menu&quot; &amp;&amp;
+      event.target.tagName == &quot;TEXTAREA&quot;
     ) {
       dismiss_menu = false;
     }
-    // the details-popup is more sticky: clicking in the #left panel won't dismiss it
+    // the details-popup is more sticky: clicking in the #left panel won&apos;t dismiss it
     let parent = event.target;
-    while (parent != null && parent.id != "left") parent = parent.offsetParent;
+    while (parent != null &amp;&amp; parent.id != &quot;left&quot;) parent = parent.offsetParent;
     dismiss_popup = parent == null;
   }
-  if (dismiss_menu) menu.style.display = "none";
+  if (dismiss_menu) menu.style.display = &quot;none&quot;;
   if (dismiss_popup) {global_popup_message_index = -1; render_popup(null);}
 }
 
@@ -678,109 +701,110 @@ function hide_popups_handler(event) {
 // ===================================================================
 // ===================================================================
 // ===================================================================
-
+  
+/** Seaoflogs will be set up with an empty body, because it initializes its controls here. */
 function render_page() {
-  const body = document.getElementsByTagName("body")[0];
+  const body = document.getElementsByTagName(&quot;body&quot;)[0];
   body.onclick = hide_popups_handler;
   body.innerHTML = `
-  <div id="left">
-    <div id="title">
-      <table>
-        <tr>
-          <td><b>Sea of logs</b></td>
-          <td>
-            <label for="load" id="loadbutton">Load...</label>
-            <input type="file" id="load" onchange='load_button_handler(event)' />
-          </td>
-        </tr>
-      </table>
-      <hr />
-    </div>
-    <div id="logs">
-      <table id="logs_table"></table>
-      <hr />
-    </div>
-    <div id="time">
-      <table>
-        <tr>
-          <td>Start</td>
-          <td>
-            <input id="input_start" style="width: 6em;" onfocus="this.select()" oninput='control_handler(event)'
-              type="text">
-            <select id="select_start" style="width: 2.5ex;"
-              onchange="if (this.selectedIndex != 0) {document.getElementById('input_start').value=this.options[this.selectedIndex].value;control_handler(event);}"></select>
-          </td>
-        </tr>
-        <tr>
-          <td>End</td>
-          <td>
-            <input id="input_end" style="width: 6em;" onfocus="this.select()" oninput='control_handler(event)'
-              type="text">
-            <select id="select_end" style="width: 2.5ex;"
-              onchange="if (this.selectedIndex != 0) {document.getElementById('input_end').value=this.options[this.selectedIndex].value;control_handler(event);}"></select>
-          </td>
-      </table>
-      <div class="error" id="error_time" style="display: none;"></div>
-      <hr />
-    </div>
-    <div id="filter">
-      Filter<br />
-      <textarea id="input_filter" wrap='soft' type='text' oninput='control_handler(event)'
-        onclick='autocomplete_handler(event)' onkeyup='autocomplete_handler(event)'
-        onfocus='autocomplete_handler(event)'></textarea>
-      <div class="error" id="error_filter" style="display: none;"></div>
-      <hr />
-    </div>
-    <div id="text">
-      Text<br />
-      <textarea id="input_text" wrap="soft" type='text' oninput='control_handler(event)'
-        onclick='autocomplete_handler(event)' onkeyup='autocomplete_handler(event)'
-        onfocus='autocomplete_handler(event)'>title</textarea>
-      <div class="error" id="error_text" style="display: none;"></div>
-      <hr />
-    </div>
-    <div id="color">
-      Color<br />
-      <textarea id="input_color" wrap="soft" type='text' oninput='control_handler(event)'
-        onclick='autocomplete_handler(event)' onkeyup='autocomplete_handler(event)'
-        onfocus='autocomplete_handler(event)'>title</textarea>
-      <div class="error" id="error_color" style="display: none;"></div>
-      <hr />
-    </div>
-    <div id="id">
-      Id<br />
-      <textarea id="input_id" wrap="soft" type='text' oninput='control_handler(event)'
-        onclick='autocomplete_handler(event)' onkeyup='autocomplete_handler(event)'
-        onfocus='autocomplete_handler(event)'>id</textarea>
-      <div class="error" id="error_id" style="display: none;"></div>
-      <hr />
-    </div>
-    <div id="details">
-      Details<br />
-      <textarea id="input_details" wrap="soft" type='text' oninput='control_handler(event)'
-        onclick='autocomplete_handler(event)' onkeyup='autocomplete_handler(event)'
-        onfocus='autocomplete_handler(event)'>message</textarea>
-      <div class="error" id="error_details" style="display: none;"></div>
-      <hr />
-    </div>
-    <pre id="perf"></pre>
-  </div>
-  <div id="right">
-    <div id="backgrounds">
-    </div>
-    <div id="connectors">
-      <svg id="svg" width="100%" height="100" viewbox="0 0 400 100" preserveAspectRatio="none"></svg>
-    </div>
-    <div id="messages">
-      <pre id="loading">Loading...</pre>
-    </div>
-  </div>
-  <div id="popup"></div>
-  <div id="menu"></div>`;
+  &lt;div id=&quot;left&quot;&gt;
+    &lt;div id=&quot;title&quot;&gt;
+      &lt;table&gt;
+        &lt;tr&gt;
+          &lt;td&gt;&lt;b&gt;Sea of logs&lt;/b&gt;&lt;/td&gt;
+          &lt;td&gt;
+            &lt;label for=&quot;load&quot; id=&quot;loadbutton&quot;&gt;Load...&lt;/label&gt;
+            &lt;input type=&quot;file&quot; id=&quot;load&quot; onchange=&apos;load_button_handler(event)&apos; /&gt;
+          &lt;/td&gt;
+        &lt;/tr&gt;
+      &lt;/table&gt;
+      &lt;hr /&gt;
+    &lt;/div&gt;
+    &lt;div id=&quot;logs&quot;&gt;
+      &lt;table id=&quot;logs_table&quot;&gt;&lt;/table&gt;
+      &lt;hr /&gt;
+    &lt;/div&gt;
+    &lt;div id=&quot;time&quot;&gt;
+      &lt;table&gt;
+        &lt;tr&gt;
+          &lt;td&gt;Start&lt;/td&gt;
+          &lt;td&gt;
+            &lt;input id=&quot;input_start&quot; style=&quot;width: 6em;&quot; onfocus=&quot;this.select()&quot; oninput=&apos;control_handler(event)&apos;
+              type=&quot;text&quot;&gt;
+            &lt;select id=&quot;select_start&quot; style=&quot;width: 2.5ex;&quot;
+              onchange=&quot;if (this.selectedIndex != 0) {document.getElementById(&apos;input_start&apos;).value=this.options[this.selectedIndex].value;control_handler(event);}&quot;&gt;&lt;/select&gt;
+          &lt;/td&gt;
+        &lt;/tr&gt;
+        &lt;tr&gt;
+          &lt;td&gt;End&lt;/td&gt;
+          &lt;td&gt;
+            &lt;input id=&quot;input_end&quot; style=&quot;width: 6em;&quot; onfocus=&quot;this.select()&quot; oninput=&apos;control_handler(event)&apos;
+              type=&quot;text&quot;&gt;
+            &lt;select id=&quot;select_end&quot; style=&quot;width: 2.5ex;&quot;
+              onchange=&quot;if (this.selectedIndex != 0) {document.getElementById(&apos;input_end&apos;).value=this.options[this.selectedIndex].value;control_handler(event);}&quot;&gt;&lt;/select&gt;
+          &lt;/td&gt;
+      &lt;/table&gt;
+      &lt;div class=&quot;error&quot; id=&quot;error_time&quot; style=&quot;display: none;&quot;&gt;&lt;/div&gt;
+      &lt;hr /&gt;
+    &lt;/div&gt;
+    &lt;div id=&quot;filter&quot;&gt;
+      Filter&lt;br /&gt;
+      &lt;textarea id=&quot;input_filter&quot; wrap=&apos;soft&apos; type=&apos;text&apos; oninput=&apos;control_handler(event)&apos;
+        onclick=&apos;autocomplete_handler(event)&apos; onkeyup=&apos;autocomplete_handler(event)&apos;
+        onfocus=&apos;autocomplete_handler(event)&apos;&gt;&lt;/textarea&gt;
+      &lt;div class=&quot;error&quot; id=&quot;error_filter&quot; style=&quot;display: none;&quot;&gt;&lt;/div&gt;
+      &lt;hr /&gt;
+    &lt;/div&gt;
+    &lt;div id=&quot;text&quot;&gt;
+      Text&lt;br /&gt;
+      &lt;textarea id=&quot;input_text&quot; wrap=&quot;soft&quot; type=&apos;text&apos; oninput=&apos;control_handler(event)&apos;
+        onclick=&apos;autocomplete_handler(event)&apos; onkeyup=&apos;autocomplete_handler(event)&apos;
+        onfocus=&apos;autocomplete_handler(event)&apos;&gt;title&lt;/textarea&gt;
+      &lt;div class=&quot;error&quot; id=&quot;error_text&quot; style=&quot;display: none;&quot;&gt;&lt;/div&gt;
+      &lt;hr /&gt;
+    &lt;/div&gt;
+    &lt;div id=&quot;color&quot;&gt;
+      Color&lt;br /&gt;
+      &lt;textarea id=&quot;input_color&quot; wrap=&quot;soft&quot; type=&apos;text&apos; oninput=&apos;control_handler(event)&apos;
+        onclick=&apos;autocomplete_handler(event)&apos; onkeyup=&apos;autocomplete_handler(event)&apos;
+        onfocus=&apos;autocomplete_handler(event)&apos;&gt;title&lt;/textarea&gt;
+      &lt;div class=&quot;error&quot; id=&quot;error_color&quot; style=&quot;display: none;&quot;&gt;&lt;/div&gt;
+      &lt;hr /&gt;
+    &lt;/div&gt;
+    &lt;div id=&quot;id&quot;&gt;
+      Id&lt;br /&gt;
+      &lt;textarea id=&quot;input_id&quot; wrap=&quot;soft&quot; type=&apos;text&apos; oninput=&apos;control_handler(event)&apos;
+        onclick=&apos;autocomplete_handler(event)&apos; onkeyup=&apos;autocomplete_handler(event)&apos;
+        onfocus=&apos;autocomplete_handler(event)&apos;&gt;id&lt;/textarea&gt;
+      &lt;div class=&quot;error&quot; id=&quot;error_id&quot; style=&quot;display: none;&quot;&gt;&lt;/div&gt;
+      &lt;hr /&gt;
+    &lt;/div&gt;
+    &lt;div id=&quot;details&quot;&gt;
+      Details&lt;br /&gt;
+      &lt;textarea id=&quot;input_details&quot; wrap=&quot;soft&quot; type=&apos;text&apos; oninput=&apos;control_handler(event)&apos;
+        onclick=&apos;autocomplete_handler(event)&apos; onkeyup=&apos;autocomplete_handler(event)&apos;
+        onfocus=&apos;autocomplete_handler(event)&apos;&gt;message&lt;/textarea&gt;
+      &lt;div class=&quot;error&quot; id=&quot;error_details&quot; style=&quot;display: none;&quot;&gt;&lt;/div&gt;
+      &lt;hr /&gt;
+    &lt;/div&gt;
+    &lt;pre id=&quot;perf&quot;&gt;&lt;/pre&gt;
+  &lt;/div&gt;
+  &lt;div id=&quot;right&quot;&gt;
+    &lt;div id=&quot;backgrounds&quot;&gt;
+    &lt;/div&gt;
+    &lt;div id=&quot;connectors&quot;&gt;
+      &lt;svg id=&quot;svg&quot; width=&quot;100%&quot; height=&quot;100&quot; viewbox=&quot;0 0 400 100&quot; preserveAspectRatio=&quot;none&quot;&gt;&lt;/svg&gt;
+    &lt;/div&gt;
+    &lt;div id=&quot;messages&quot;&gt;
+      &lt;pre id=&quot;loading&quot;&gt;Loading...&lt;/pre&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+  &lt;div id=&quot;popup&quot;&gt;&lt;/div&gt;
+  &lt;div id=&quot;menu&quot;&gt;&lt;/div&gt;`;
 }
 
 /** Figures out a good {x,y} for the popup to display related to the element.
- * If align is 'right' then it will align to the right of the element,
+ * If align is &apos;right&apos; then it will align to the right of the element,
  * otherwise to the left.
  */
 function boundPopup(popup, element, align) {
@@ -789,28 +813,28 @@ function boundPopup(popup, element, align) {
   const rWindow = { right: window.innerWidth, bottom: window.innerHeight };
   // popup will be offset to the left of right-column, or offset to right of left-column
   // but clipped within bounds
-  let x = align == "right" ? rElement.right - rPopup.width : rElement.left;
-  if (x + rPopup.width > rWindow.right) x = rWindow.right - rPopup.width;
-  if (x < 0) x = 0;
+  let x = align == &quot;right&quot; ? rElement.right - rPopup.width : rElement.left;
+  if (x + rPopup.width &gt; rWindow.right) x = rWindow.right - rPopup.width;
+  if (x &lt; 0) x = 0;
   // popup will go underneath element if it fits, else above if it fits, else underneath
   let y =
-    rElement.bottom + rPopup.height < rWindow.bottom
+    rElement.bottom + rPopup.height &lt; rWindow.bottom
       ? rElement.bottom
-      : rElement.top - rPopup.height >= 0
+      : rElement.top - rPopup.height &gt;= 0
       ? rElement.top - rPopup.height
       : rElement.bottom;
   return { x, y };
 }
 
-/** Either shows or hides 'element' according to whether to show the exception
+/** Either shows or hides &apos;element&apos; according to whether to show the exception
  */
 function render_error(element, exn) {
   element.innerText = String(exn);
-  element.style.display = exn == null ? "none" : "block";
+  element.style.display = exn == null ? &quot;none&quot; : &quot;block&quot;;
 }
 
 /** Renders this list of messages into html elements #messages, #svg, #backgrounds.
- * Depends on the input messages having additional 'gindex' and 'filter' properties.
+ * Depends on the input messages having additional &apos;gindex&apos; and &apos;filter&apos; properties.
  * Returns {text_exn, id_exn, color_exn} for any errors encountered
  */
 function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
@@ -818,36 +842,36 @@ function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
   let id_exn = null;
   let color_exn = null;
 
-  // This is where we'll render to
-  const messagesElement = document.getElementById("messages");
-  const svgElement = document.getElementById("svg");
-  const backgroundsElement = document.getElementById("backgrounds");
+  // This is where we&apos;ll render to
+  const messagesElement = document.getElementById(&quot;messages&quot;);
+  const svgElement = document.getElementById(&quot;svg&quot;);
+  const backgroundsElement = document.getElementById(&quot;backgrounds&quot;);
 
-  // If anything does throw, these are the values we'll use
-  const color_error = "#E00000";
-  const text_error = `<span class='error'>error</span>`;
+  // If anything does throw, these are the values we&apos;ll use
+  const color_error = &quot;#E00000&quot;;
+  const text_error = `&lt;span class=&apos;error&apos;&gt;error&lt;/span&gt;`;
 
   // Some derived values for layout
   let gaps = []; // gap[i] is the extra padding above message i, where 0=no padding and 1=1 line of padding
   let pos = []; // pos[i] = {left, top, width, height, cx, cy} for message i
-  let idmap = {}; // a map {id -> [i1, i2]}, but only listing ones that pass the filter
+  let idmap = {}; // a map {id -&gt; [i1, i2]}, but only listing ones that pass the filter
 
-  // Here we compute 'gaps' derived values, the extra padding above messages.
+  // Here we compute &apos;gaps&apos; derived values, the extra padding above messages.
   // The idea is that messages-with-time go first in the list. If at least three messages
-  // have times, then we'll set up the 'gap' array to scale their positions.
-  let time_count = messages.findIndex((m) => m.time == null);
+  // have times, then we&apos;ll set up the &apos;gap&apos; array to scale their positions.
+  let time_count = messages.findIndex((m) =&gt; m.time == null);
   time_count = time_count == -1 ? messages.length : time_count;
-  if (time_count >= 3) {
+  if (time_count &gt;= 3) {
     const earliest_time = messages[0].time;
     const latest_time = messages[time_count - 1].time;
     // Imagine N=time_count messages spread over a vertical axis according to their
-    // timestamp, where the vertical axis is 4N tall. This implies the natural "y"
+    // timestamp, where the vertical axis is 4N tall. This implies the natural &quot;y&quot;
     // of each element, and hence the natural separation between two elements.
     // We will cap the separation into the range [1..5], and define gap=separation-1.
     const yrange = time_count * 4; // 4N
     const timerange = latest_time.getTime() - earliest_time.getTime();
     gaps[0] = 0;
-    for (let i = 1; i < time_count; i++) {
+    for (let i = 1; i &lt; time_count; i++) {
       const prev_natural_y =
         ((messages[i - 1].time.getTime() - earliest_time.getTime()) /
           timerange) *
@@ -860,20 +884,20 @@ function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
       gaps[i] = separation - 1;
     }
   }
-  // Let's place a gap of 4 between messages-with-time and those without,
+  // Let&apos;s place a gap of 4 between messages-with-time and those without,
   // and then all messages-without-time will be adjacent to each other.
-  for (let i = time_count; i < messages.length; i++) {
-    gaps[i] = i == time_count && i != 0 ? 4 : 0;
+  for (let i = time_count; i &lt; messages.length; i++) {
+    gaps[i] = i == time_count &amp;&amp; i != 0 ? 4 : 0;
   }
   // If every single element was spaced out, we might as well compress them.
   const mingap = Math.min(...gaps.slice(1, time_count - 1));
-  for (let i = 1; i < time_count; i++) {
+  for (let i = 1; i &lt; time_count; i++) {
     gaps[i] -= mingap;
   }
 
   // Render phase 1: this inserts html into messagesElement, and computes pos[] and idmap[]
-  let html = "";
-  for (let i = 0; i < messages.length; i++) {
+  let html = &quot;&quot;;
+  for (let i = 0; i &lt; messages.length; i++) {
     const m = messages[i];
     const align = align_fn(m);
     let text;
@@ -886,8 +910,8 @@ function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
     let color;
     try {
       color = color_fn(m);
-      if (typeof color === "string" && color.match(/^#[0-9a-fA-F]..(...)?$/)) {
-          // it's a color string of the form "#abc" or "#abcdef"
+      if (typeof color === &quot;string&quot; &amp;&amp; color.match(/^#[0-9a-fA-F]..(...)?$/)) {
+          // it&apos;s a color string of the form &quot;#abc&quot; or &quot;#abcdef&quot;
       } else {
           color = hsl((hash(String(color)) % 12) / 12.0, 0.5, 0.9);
       }
@@ -899,7 +923,7 @@ function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
     try {
       ids = id_fn(m);
       if (Array.isArray(ids)) {
-        ids = Array.from(new Set(ids.filter(x => x != null).map(x => String(x))).values());
+        ids = Array.from(new Set(ids.filter(x =&gt; x != null).map(x =&gt; String(x))).values());
       } else if (ids != null) {
         ids = [String(ids)];
       } else {
@@ -912,42 +936,42 @@ function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
     }
     // derived quantities pos[] and idmap[]
     let jiggle = (hash(text) % 6) - 3;
-    pos[i] = { cx: align == "right" ? 370 + jiggle : align == "left" ? 30 + jiggle : 200 + jiggle};
+    pos[i] = { cx: align == &quot;right&quot; ? 370 + jiggle : align == &quot;left&quot; ? 30 + jiggle : 200 + jiggle};
     for (const id of ids) {
       if (idmap[id] == null) idmap[id] = [];
       idmap[id].push(i);
     }
     // produce the html for this message
-    let time = "";
+    let time = &quot;&quot;;
     if (m.time != null) {
       time = formatCompactTime(m.time);
-      time = `<span class='messagetime'>${
-        align == "right" ? "&nbsp;" : ""
-      }${time}${align == "right" ? "" : "&nbsp;"}</span>`;
+      time = `&lt;span class=&apos;messagetime&apos;&gt;${
+        align == &quot;right&quot; ? &quot;&amp;nbsp;&quot; : &quot;&quot;
+      }${time}${align == &quot;right&quot; ? &quot;&quot; : &quot;&amp;nbsp;&quot;}&lt;/span&gt;`;
     }
-    let time_right = align == "right" ? time : "";
-    let time_left = align == "right" ? "" : time;
-    const gap = gaps[i] == 0 ? "" : `margin-top: ${gaps[i] * 3}ex;`;
-    const s = `<div class="message" style='text-align: ${align}; ${gap}' data-color='${color}'><span class="messageall">${time_left}<span class="messagetext">${text}</span>${time_right}</span></div>`;
+    let time_right = align == &quot;right&quot; ? time : &quot;&quot;;
+    let time_left = align == &quot;right&quot; ? &quot;&quot; : time;
+    const gap = gaps[i] == 0 ? &quot;&quot; : `margin-top: ${gaps[i] * 3}ex;`;
+    const s = `&lt;div class=&quot;message&quot; style=&apos;text-align: ${align}; ${gap}&apos; data-color=&apos;${color}&apos;&gt;&lt;span class=&quot;messageall&quot;&gt;${time_left}&lt;span class=&quot;messagetext&quot;&gt;${text}&lt;/span&gt;${time_right}&lt;/span&gt;&lt;/div&gt;`;
     html += s;
   }
   messagesElement.innerHTML = html;
 
   // Render phase 2: uses the message elements that have been created to obtain
   // layout information, set up handlers on them, and completes pos[]
-  for (let i = 0; i < messages.length; i++) {
+  for (let i = 0; i &lt; messages.length; i++) {
     const element = messagesElement.children[i];
     const message = messages[i];
     const gindex = message.gindex;
-    const textspan = element.getElementsByClassName("messagetext")[0]; // should definitely be there
-    const timespan = element.getElementsByClassName("messagetime")[0]; // may not be there
-    textspan.addEventListener("click", (event) =>
+    const textspan = element.getElementsByClassName(&quot;messagetext&quot;)[0]; // should definitely be there
+    const timespan = element.getElementsByClassName(&quot;messagetime&quot;)[0]; // may not be there
+    textspan.addEventListener(&quot;click&quot;, (event) =&gt;
       message_handler(event, element, gindex)
     );
-    timespan?.addEventListener("click", (event) =>
+    timespan?.addEventListener(&quot;click&quot;, (event) =&gt;
       time_handler(event, message.time)
     );
-    timespan?.addEventListener("contextmenu", (event) => {
+    timespan?.addEventListener(&quot;contextmenu&quot;, (event) =&gt; {
       event.preventDefault();
       time_handler(event, message.time);
     });
@@ -962,36 +986,36 @@ function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
   }
 
   // Render phase 3: update svg, which contains the lines.
-  // The svg element will have "width=100% height=<natural_height>" to fill entire space.
-  // The viewbox will have "width=400 height=<natural_height>"
+  // The svg element will have &quot;width=100% height=&lt;natural_height&gt;&quot; to fill entire space.
+  // The viewbox will have &quot;width=400 height=&lt;natural_height&gt;&quot;
   // so that coordinates of elements will be normalized to an X range [0..400]
   // and a Y range identical to the pixel positions of the elements
   const lastChild = messagesElement.lastChild;
   const height =
     lastChild == null ? 0 : lastChild.offsetTop + lastChild.offsetHeight;
-  svgElement.setAttribute("height", height);
-  svgElement.setAttribute("viewBox", `0 0 400 ${height}`);
+  svgElement.setAttribute(&quot;height&quot;, height);
+  svgElement.setAttribute(&quot;viewBox&quot;, `0 0 400 ${height}`);
   // Now assemble the content of the svg, i.e. the id lines
-  let svg = "";
+  let svg = &quot;&quot;;
   for (const [id, indexes] of Object.entries(idmap)) {
-    if (indexes.length <= 1) continue;
+    if (indexes.length &lt;= 1) continue;
     const color = hsl((hash(id) % 12) / 12.0, 0.9, 0.4);
-    for (let vi = 0; vi < indexes.length - 1; vi++) {
+    for (let vi = 0; vi &lt; indexes.length - 1; vi++) {
       const m1 = indexes[vi];
       const m2 = indexes[vi + 1];
-      svg += `<line x1='${pos[m1].cx}' y1='${pos[m1].cy}' x2='${pos[m2].cx}' y2='${pos[m2].cy}' stroke='${color}'/>`;
+      svg += `&lt;line x1=&apos;${pos[m1].cx}&apos; y1=&apos;${pos[m1].cy}&apos; x2=&apos;${pos[m2].cx}&apos; y2=&apos;${pos[m2].cy}&apos; stroke=&apos;${color}&apos;/&gt;`;
     }
-    for (let vi = 0; vi < indexes.length; vi++) {
+    for (let vi = 0; vi &lt; indexes.length; vi++) {
       const m1 = indexes[vi];
-      svg += `<ellipse cx='${pos[m1].cx}' cy='${pos[m1].cy}' rx='1' ry='2' fill='${color}'/>`;
+      svg += `&lt;ellipse cx=&apos;${pos[m1].cx}&apos; cy=&apos;${pos[m1].cy}&apos; rx=&apos;1&apos; ry=&apos;2&apos; fill=&apos;${color}&apos;/&gt;`;
     }
   }
   svgElement.innerHTML = svg;
 
-  // As for backgrounds, they're not done here; they're all provided lazily
-  // by render_missing_backgrounds. That's because assembling a load of html
-  // is the bottleneck, and we don't want to do more of it than necessary
-  backgroundsElement.innerHTML = "";
+  // As for backgrounds, they&apos;re not done here; they&apos;re all provided lazily
+  // by render_missing_backgrounds. That&apos;s because assembling a load of html
+  // is the bottleneck, and we don&apos;t want to do more of it than necessary
+  backgroundsElement.innerHTML = &quot;&quot;;
 
   return { text_exn, id_exn, color_exn };
 }
@@ -1000,34 +1024,34 @@ function render_messages(messages, text_fn, id_fn, color_fn, align_fn) {
  * until they scrolled into view.
  */
 function render_missing_backgrounds() {
-  const container = document.getElementById("messages");
-  // let's bisect to find the first child visible in the viewport
-  // i.e. the first element whose bottom is > 0
+  const container = document.getElementById(&quot;messages&quot;);
+  // let&apos;s bisect to find the first child visible in the viewport
+  // i.e. the first element whose bottom is &gt; 0
   let ifirst = 0;
   let ilast = container.childElementCount;
-  while (ilast - ifirst > 1) {
+  while (ilast - ifirst &gt; 1) {
     const i = Math.floor((ifirst + ilast) / 2);
     const r = container.children[i].getBoundingClientRect();
-    if (r.bottom > 0) ilast = i;
-    else if (r.bottom <= 0) ifirst = i;
+    if (r.bottom &gt; 0) ilast = i;
+    else if (r.bottom &lt;= 0) ifirst = i;
   }
-  for (let i = ifirst; i < container.childElementCount; i++) {
+  for (let i = ifirst; i &lt; container.childElementCount; i++) {
     const element = container.children[i];
     const r = element.getBoundingClientRect();
-    if (r.top > container.offsetHeight) return;
-    const color = element.getAttribute("data-color");
+    if (r.top &gt; container.offsetHeight) return;
+    const color = element.getAttribute(&quot;data-color&quot;);
     if (color == null) continue;
-    element.removeAttribute("data-color", null);
+    element.removeAttribute(&quot;data-color&quot;, null);
     const span = element.children[0];
-    const html = `<div class='background' style='position:relative; width:100%; height:0; margin:0; top:${element.offsetTop}px; text-align:${element.style.textAlign};'><span style='display:inline-block; width:${span.offsetWidth}px; height:${span.offsetHeight}px; background-color:${color};'></span></div>`;
+    const html = `&lt;div class=&apos;background&apos; style=&apos;position:relative; width:100%; height:0; margin:0; top:${element.offsetTop}px; text-align:${element.style.textAlign};&apos;&gt;&lt;span style=&apos;display:inline-block; width:${span.offsetWidth}px; height:${span.offsetHeight}px; background-color:${color};&apos;&gt;&lt;/span&gt;&lt;/div&gt;`;
     document
-      .getElementById("backgrounds")
-      .insertAdjacentHTML("beforeend", html);
+      .getElementById(&quot;backgrounds&quot;)
+      .insertAdjacentHTML(&quot;beforeend&quot;, html);
   }
 }
 
 /** Either hides the details-popup (if given null) or renders
- * the message in 'global_messages[global_popup_message_index]'
+ * the message in &apos;global_messages[global_popup_message_index]&apos;
  * and attaches it to the messageDiv.
  * Note: this function reads the url query parameters for the code
  * to generate details; this query parameters were previously
@@ -1035,12 +1059,12 @@ function render_missing_backgrounds() {
  */
 function render_popup(messageDiv) {
   // close the existing popup if necessary
-  render_error(document.getElementById("error_details"), null);
-  document.getElementById("popup").style.display = "none";
+  render_error(document.getElementById(&quot;error_details&quot;), null);
+  document.getElementById(&quot;popup&quot;).style.display = &quot;none&quot;;
   if (messageDiv == null) return;
   // recompute the new popup value
   const params = new URLSearchParams(window.location.search);
-  const details_fn = make_fn(params.get("details") || "message");
+  const details_fn = make_fn(params.get(&quot;details&quot;) || &quot;message&quot;);
   let details_exn = null;
   let details;
   try {
@@ -1053,52 +1077,52 @@ function render_popup(messageDiv) {
   // render the popup
   if (details_exn == null) popup.innerText = details;
   else
-    popup.innerHTML = `<span class="error">${esc(String(details_exn))}</span>`;
-  popup.style.display = "block";
+    popup.innerHTML = `&lt;span class=&quot;error&quot;&gt;${esc(String(details_exn))}&lt;/span&gt;`;
+  popup.style.display = &quot;block&quot;;
   let { x, y } = boundPopup(
     popup,
-    messageDiv.getElementsByClassName("messagetext")[0],
+    messageDiv.getElementsByClassName(&quot;messagetext&quot;)[0],
     messageDiv.style.textAlign
   );
   const rMessagesDiv = document
-    .getElementById("messages")
+    .getElementById(&quot;messages&quot;)
     .getBoundingClientRect();
   y -= rMessagesDiv.top;
   popup.style.left = `${x}px`;
   popup.style.top = `${y}px`;
   // Update error if necessary
-  render_error(document.getElementById("error_details"), details_exn);
+  render_error(document.getElementById(&quot;error_details&quot;), details_exn);
 }
 
 /* Reads current controls. Returns a URLSearchParams with the following keys:
- * log_<name>_checked:bool, log_<name>_align:left|right|center, filter,start,end,text,id,color,details:string
+ * log_&lt;name&gt;_checked:bool, log_&lt;name&gt;_align:left|right|center, filter,start,end,text,id,color,details:string
  */
 function read_controls() {
   let params = new URLSearchParams();
-  const filter = document.getElementById("input_filter").value;
-  const start = document.getElementById("input_start").value;
-  const end = document.getElementById("input_end").value;
-  const text = document.getElementById("input_text").value;
-  const id = document.getElementById("input_id").value;
-  const color = document.getElementById("input_color").value;
-  const details = document.getElementById("input_details").value;
-  if (filter != defaults.filter) params.set("filter", filter);
-  if (start != defaults.start) params.set("start", start);
-  if (end != defaults.end) params.set("end", end);
-  if (text != defaults.text) params.set("text", text);
-  if (id != defaults.id) params.set("id", id);
-  if (color != defaults.color) params.set("color", color);
-  if (details != defaults.details) params.set("details", details);
-  for (const div of document.getElementsByClassName("log")) {
-    const checkboxElement = div.getElementsByTagName("input")[0];
-    const alignElement = div.getElementsByTagName("select")[0];
-    const key = div.getAttribute("id"); // e.g. "log_client"
+  const filter = document.getElementById(&quot;input_filter&quot;).value;
+  const start = document.getElementById(&quot;input_start&quot;).value;
+  const end = document.getElementById(&quot;input_end&quot;).value;
+  const text = document.getElementById(&quot;input_text&quot;).value;
+  const id = document.getElementById(&quot;input_id&quot;).value;
+  const color = document.getElementById(&quot;input_color&quot;).value;
+  const details = document.getElementById(&quot;input_details&quot;).value;
+  if (filter != defaults.filter) params.set(&quot;filter&quot;, filter);
+  if (start != defaults.start) params.set(&quot;start&quot;, start);
+  if (end != defaults.end) params.set(&quot;end&quot;, end);
+  if (text != defaults.text) params.set(&quot;text&quot;, text);
+  if (id != defaults.id) params.set(&quot;id&quot;, id);
+  if (color != defaults.color) params.set(&quot;color&quot;, color);
+  if (details != defaults.details) params.set(&quot;details&quot;, details);
+  for (const div of document.getElementsByClassName(&quot;log&quot;)) {
+    const checkboxElement = div.getElementsByTagName(&quot;input&quot;)[0];
+    const alignElement = div.getElementsByTagName(&quot;select&quot;)[0];
+    const key = div.getAttribute(&quot;id&quot;); // e.g. &quot;log_client&quot;
     const value = checkboxElement.checked
       ? alignElement.value
-      : "hide_" + alignElement.value; // e.g. "left" or "hide_center"
-    const log = key.replace(/^log_/, "");
-    const def_checked = (global_log_counts[log] < defaults.threshold_for_visible) ? "" : "hide_";
-    const def_align = (log == "server" || log.endsWith(":server")) ? defaults.align_for_server_log : defaults.align_for_other_logs;
+      : &quot;hide_&quot; + alignElement.value; // e.g. &quot;left&quot; or &quot;hide_center&quot;
+    const log = key.replace(/^log_/, &quot;&quot;);
+    const def_checked = (global_log_counts[log] &lt; defaults.threshold_for_visible) ? &quot;&quot; : &quot;hide_&quot;;
+    const def_align = (log == &quot;server&quot; || log.endsWith(&quot;:server&quot;)) ? defaults.align_for_server_log : defaults.align_for_other_logs;
     if (value == `${def_checked}${def_align}`) continue;
     params.set(key, value);
   }
@@ -1108,56 +1132,56 @@ function read_controls() {
 /** Writes a URLSearchParams into the UI controls
  */
 function write_controls(params) {
-  const write = (element, paramName, def) => {
+  const write = (element, paramName, def) =&gt; {
     element.value = params.has(paramName) ? params.get(paramName) : def;
   };
-  write(document.getElementById("input_filter"), "filter", defaults.filter);
-  write(document.getElementById("input_start"), "start", defaults.start);
-  write(document.getElementById("input_end"), "end", defaults.end);
-  write(document.getElementById("input_text"), "text", defaults.text);
-  write(document.getElementById("input_id"), "id", defaults.id);
-  write(document.getElementById("input_color"), "color", defaults.color);
-  write(document.getElementById("input_details"), "details", defaults.details);
-  for (const div of document.getElementsByClassName("log")) {
-    const checkboxElement = div.getElementsByTagName("input")[0];
-    const alignElement = div.getElementsByTagName("select")[0];
-    const key = div.getAttribute("id"); // e.g. "log_client"
-    const log = key.replace(/^log_/, "");
+  write(document.getElementById(&quot;input_filter&quot;), &quot;filter&quot;, defaults.filter);
+  write(document.getElementById(&quot;input_start&quot;), &quot;start&quot;, defaults.start);
+  write(document.getElementById(&quot;input_end&quot;), &quot;end&quot;, defaults.end);
+  write(document.getElementById(&quot;input_text&quot;), &quot;text&quot;, defaults.text);
+  write(document.getElementById(&quot;input_id&quot;), &quot;id&quot;, defaults.id);
+  write(document.getElementById(&quot;input_color&quot;), &quot;color&quot;, defaults.color);
+  write(document.getElementById(&quot;input_details&quot;), &quot;details&quot;, defaults.details);
+  for (const div of document.getElementsByClassName(&quot;log&quot;)) {
+    const checkboxElement = div.getElementsByTagName(&quot;input&quot;)[0];
+    const alignElement = div.getElementsByTagName(&quot;select&quot;)[0];
+    const key = div.getAttribute(&quot;id&quot;); // e.g. &quot;log_client&quot;
+    const log = key.replace(/^log_/, &quot;&quot;);
     if (params.has(key)) {
       const value = params.get(key);
-      checkboxElement.checked = !value.startsWith('hide_');
-      alignElement.value = value.replace(/^hide_/, "");
+      checkboxElement.checked = !value.startsWith(&apos;hide_&apos;);
+      alignElement.value = value.replace(/^hide_/, &quot;&quot;);
     } else {
-      checkboxElement.checked = global_log_counts[log] < defaults.threshold_for_visible;
-      alignElement.value = (log == "server" || log.endsWith(":server")) ? defaults.align_for_server_log : defaults.align_for_other_logs;
+      checkboxElement.checked = global_log_counts[log] &lt; defaults.threshold_for_visible;
+      alignElement.value = (log == &quot;server&quot; || log.endsWith(&quot;:server&quot;)) ? defaults.align_for_server_log : defaults.align_for_other_logs;
     }
   }
 }
 
-/** Adds a new log dropdown. 'count' is a number to show to its right.
+/** Adds a new log dropdown. &apos;count&apos; is a number to show to its right.
  */
 function append_log_control(log, count) {
-  const name = log == null ? "null" : log;
-  let html = "";
-  html += `<td class="td_logleft" >`;
-  html += `<input id='logcheck_${name}' onchange='control_handler(event)' type='checkbox' checked/>`;
-  html += `<label for='logcheck_${name}'>${name}</label> <span class='logcount'>${count.toLocaleString()}</span></td>`;
-  html += `<td class="td_logright"><select id='logalign_${name}' onchange='control_handler(event)'>`;
-  html += `<option value="left" selected>L</option>`;
-  html += `<option value="center">C</option>`;
-  html += `<option value="right">R</option>`;
-  html += `</select></td>`;
-  const table = document.getElementById("logs_table");
+  const name = log == null ? &quot;null&quot; : log;
+  let html = &quot;&quot;;
+  html += `&lt;td class=&quot;td_logleft&quot; &gt;`;
+  html += `&lt;input id=&apos;logcheck_${name}&apos; onchange=&apos;control_handler(event)&apos; type=&apos;checkbox&apos; checked/&gt;`;
+  html += `&lt;label for=&apos;logcheck_${name}&apos;&gt;${name}&lt;/label&gt; &lt;span class=&apos;logcount&apos;&gt;${count.toLocaleString()}&lt;/span&gt;&lt;/td&gt;`;
+  html += `&lt;td class=&quot;td_logright&quot;&gt;&lt;select id=&apos;logalign_${name}&apos; onchange=&apos;control_handler(event)&apos;&gt;`;
+  html += `&lt;option value=&quot;left&quot; selected&gt;L&lt;/option&gt;`;
+  html += `&lt;option value=&quot;center&quot;&gt;C&lt;/option&gt;`;
+  html += `&lt;option value=&quot;right&quot;&gt;R&lt;/option&gt;`;
+  html += `&lt;/select&gt;&lt;/td&gt;`;
+  const table = document.getElementById(&quot;logs_table&quot;);
   const tr = table.insertRow(table.rows.length);
-  tr.className = "log";
+  tr.className = &quot;log&quot;;
   tr.id = `log_${name}`;
   tr.innerHTML = html;
 }
 
 /**
- * Reads through the 'global_messages' to see what logs-controls should be shown,
+ * Reads through the &apos;global_messages&apos; to see what logs-controls should be shown,
  * reads the UI to see what log-controls are already shown,
- * and adds to the UI any log-controls that are needed. Picks sensible 'align' defaults
+ * and adds to the UI any log-controls that are needed. Picks sensible &apos;align&apos; defaults
  * for them too.
  * Note: the log controls include the filter/alignment section and the time section.
  */
@@ -1168,12 +1192,12 @@ function render_controls() {
   for (const m of global_messages) {
     if (!seen.has(m.log)) {logs.push(m.log); seen.add(m.log);}
   }
-  // Add in whichever ones aren't already shown
+  // Add in whichever ones aren&apos;t already shown
   for (const log of logs) {
     if (document.getElementById(`logcheck_${log}`) != null) continue;
     append_log_control(log, global_log_counts[log]);
   }
-  document.getElementById('logs').style.display = logs.length > 0 ? 'block' : 'none';
+  document.getElementById(&apos;logs&apos;).style.display = logs.length &gt; 0 ? &apos;block&apos; : &apos;none&apos;;
   // What time controls do we want to show?
   let extremes = {};
   let earliest = null;
@@ -1182,37 +1206,37 @@ function render_controls() {
     if (extremes[m.log] == null)
       extremes[m.log] = { earliest: null, latest: null };
     if (m.time == null) continue;
-    if (earliest == null || m.time < earliest) earliest = m.time;
-    if (latest == null || m.time > latest) latest = m.time;
-    if (extremes[m.log].earliest == null || m.time < extremes[m.log].earliest)
+    if (earliest == null || m.time &lt; earliest) earliest = m.time;
+    if (latest == null || m.time &gt; latest) latest = m.time;
+    if (extremes[m.log].earliest == null || m.time &lt; extremes[m.log].earliest)
       extremes[m.log].earliest = m.time;
-    if (extremes[m.log].latest == null || m.time > extremes[m.log].latest)
+    if (extremes[m.log].latest == null || m.time &gt; extremes[m.log].latest)
       extremes[m.log].latest = m.time;
   }
   if (earliest == null) {
-    document.getElementById("time").style.display = "none";
+    document.getElementById(&quot;time&quot;).style.display = &quot;none&quot;;
     return;
   }
-  document.getElementById("time").style.display = "block";
+  document.getElementById(&quot;time&quot;).style.display = &quot;block&quot;;
   let s;
   s = formatTimeControl(earliest, global_messages);
-  let html_start = `<option>(select)</option><option></option><option value='${s}'>${s}</option>`;
+  let html_start = `&lt;option&gt;(select)&lt;/option&gt;&lt;option&gt;&lt;/option&gt;&lt;option value=&apos;${s}&apos;&gt;${s}&lt;/option&gt;`;
   s = formatTimeControl(latest, global_messages);
-  let html_end = `<option>(select)</option><option></option><option value='${s}'>${s}</option>`;
-  html_end += `<option value='+5s'>+5s</option>`;
-  html_end += `<option value='+10 minutes'>+10 minutes</option>`;
+  let html_end = `&lt;option&gt;(select)&lt;/option&gt;&lt;option&gt;&lt;/option&gt;&lt;option value=&apos;${s}&apos;&gt;${s}&lt;/option&gt;`;
+  html_end += `&lt;option value=&apos;+5s&apos;&gt;+5s&lt;/option&gt;`;
+  html_end += `&lt;option value=&apos;+10 minutes&apos;&gt;+10 minutes&lt;/option&gt;`;
   for (const log of logs) {
     if (extremes[log].earliest != null) {
       const s = formatTimeControl(extremes[log].earliest, global_messages);
-      html_start += `<option value='${s}'>${s} - ${log}</option>`;
+      html_start += `&lt;option value=&apos;${s}&apos;&gt;${s} - ${log}&lt;/option&gt;`;
     }
     if (extremes[log].latest != null) {
       const s = formatTimeControl(extremes[log].latest, global_messages);
-      html_end += `<option value='${s}'>${s} - ${log}</option>`;
+      html_end += `&lt;option value=&apos;${s}&apos;&gt;${s} - ${log}&lt;/option&gt;`;
     }
   }
-  document.getElementById("select_start").innerHTML = html_start;
-  document.getElementById("select_end").innerHTML = html_end;
+  document.getElementById(&quot;select_start&quot;).innerHTML = html_start;
+  document.getElementById(&quot;select_end&quot;).innerHTML = html_end;
 }
 
 // ===================================================================
@@ -1226,19 +1250,19 @@ function render_controls() {
 // ===================================================================
 
 const defaults = {
-  filter: "",
-  start: "",
-  end: "",
-  text: "title || line",
-  id: "id",
-  color: "title",
-  details: "message",
-  align_for_other_logs: "left",
-  align_for_server_log: "right",
+  filter: &quot;&quot;,
+  start: &quot;&quot;,
+  end: &quot;&quot;,
+  text: &quot;title || line&quot;,
+  id: &quot;id&quot;,
+  color: &quot;title&quot;,
+  details: &quot;message&quot;,
+  align_for_other_logs: &quot;left&quot;,
+  align_for_server_log: &quot;right&quot;,
   threshold_for_visible: 2000,
 };
 
-/** Given a list of messages, returns {logname->count}.
+/** Given a list of messages, returns {logname-&gt;count}.
  */
 function tally_logs(messages) {
   let counts = {}; // map from logname to number of messages in that log
@@ -1250,26 +1274,26 @@ function tally_logs(messages) {
 }
 
 /** Returns a filtered+sorted list of messages to display.
- * source:message[]' is a list of messages.
- * 'filter_fn:m->bool' is a predicate on messages.
- * 'start:Date?' and 'end:Date?' are times.
+ * source:message[]&apos; is a list of messages.
+ * &apos;filter_fn:m-&gt;bool&apos; is a predicate on messages.
+ * &apos;start:Date?&apos; and &apos;end:Date?&apos; are times.
  * Returns {messages: message[], filter_exn}
- * Each message returned actually has an additional property 'gindex',
- * for the index into the source list, and some have 'filter' if
+ * Each message returned actually has an additional property &apos;gindex&apos;,
+ * for the index into the source list, and some have &apos;filter&apos; if
  * the filter function failed on them.
  */
 function filter_and_sort_messages(source, filter_fn, start, end) {
   let filter_exn = null;
 
-  // We'll stable-sort all messages by time, but putting unstamped messages at the end.
-  // We also add a property 'gindex' to the messages in our local 'messages' array,
+  // We&apos;ll stable-sort all messages by time, but putting unstamped messages at the end.
+  // We also add a property &apos;gindex&apos; to the messages in our local &apos;messages&apos; array,
   // for the index into the global messages list, and an optional property
-  // 'filter' which has value null for everything that couldn't be filtered.
+  // &apos;filter&apos; which has value null for everything that couldn&apos;t be filtered.
   let messages = [];
-  for (let gindex=0; gindex<global_messages.length; gindex++) {
+  for (let gindex=0; gindex&lt;global_messages.length; gindex++) {
     const m = global_messages[gindex];
-    if (start != null && (m.time == null || m.time < start)) continue;
-    if (end != null && (m.time == null || m.time > end)) continue;
+    if (start != null &amp;&amp; (m.time == null || m.time &lt; start)) continue;
+    if (end != null &amp;&amp; (m.time == null || m.time &gt; end)) continue;
     try {
       if (filter_fn(m)) messages.push(m);
     } catch (e) {
@@ -1277,16 +1301,16 @@ function filter_and_sort_messages(source, filter_fn, start, end) {
       messages.push(m); // still shown even with error
     }
   }
-  messages.sort((a, b) =>
-    a.time == null && b.time == null
+  messages.sort((a, b) =&gt;
+    a.time == null &amp;&amp; b.time == null
       ? 0
       : b.time == null
       ? -1
       : a.time == null
       ? 1
-      : a.time < b.time
+      : a.time &lt; b.time
       ? -1
-      : b.time < a.time
+      : b.time &lt; a.time
       ? 1
       : 0
   );
@@ -1295,46 +1319,46 @@ function filter_and_sort_messages(source, filter_fn, start, end) {
 
 /** Attempts to parse the string as a date/time in a few common log idioms. Test cases at https://jsfiddle.net/z6g20nq1/1/ */
 function tryParseLogTime(s) {
-  const match = s.match(/(?<y>\d\d\d\d)-(?<m>\d\d)-(?<d>\d\d) (?<hh>\d\d):(?<mm>\d\d):(?<ss>\d\d).(?<ms>\d\d\d)/) || // 2021-11-12 06:53:11.230
-      s.match(/(?<hh>\d\d):(?<mm>\d\d):(?<ss>\d\d).(?<ms>\d\d\d)/) || // 06:53:11.230
-      s.match(/(?<y>\d\d\d\d)-(?<m>\d\d)-(?<d>\d\d) (?<hh>\d\d):(?<mm>\d\d):(?<ss>\d\d)/) || // 2021-11-12 06:53:11
-      s.match(/(?<hh>\d\d):(?<mm>\d\d):(?<ss>\d\d)/) || // 06:53:11
-      s.match(/(?<m>\d+)\/(?<d>\d+)\/(?<y>\d+), (?<hh>\d+):(?<mm>\d+):(?<ss>\d+)() (?<ampm>(AM|PM))?/) || // 10/26/2021, 9:43:06 PM
-      s.match(/(?<hh>\d+):(?<mm>\d+):(?<ss>\d+) (?<ampm>(AM|PM))/); // 9:43:06 PM
+  const match = s.match(/(?&lt;y&gt;\d\d\d\d)-(?&lt;m&gt;\d\d)-(?&lt;d&gt;\d\d) (?&lt;hh&gt;\d\d):(?&lt;mm&gt;\d\d):(?&lt;ss&gt;\d\d).(?&lt;ms&gt;\d\d\d)/) || // 2021-11-12 06:53:11.230
+      s.match(/(?&lt;hh&gt;\d\d):(?&lt;mm&gt;\d\d):(?&lt;ss&gt;\d\d).(?&lt;ms&gt;\d\d\d)/) || // 06:53:11.230
+      s.match(/(?&lt;y&gt;\d\d\d\d)-(?&lt;m&gt;\d\d)-(?&lt;d&gt;\d\d) (?&lt;hh&gt;\d\d):(?&lt;mm&gt;\d\d):(?&lt;ss&gt;\d\d)/) || // 2021-11-12 06:53:11
+      s.match(/(?&lt;hh&gt;\d\d):(?&lt;mm&gt;\d\d):(?&lt;ss&gt;\d\d)/) || // 06:53:11
+      s.match(/(?&lt;m&gt;\d+)\/(?&lt;d&gt;\d+)\/(?&lt;y&gt;\d+), (?&lt;hh&gt;\d+):(?&lt;mm&gt;\d+):(?&lt;ss&gt;\d+)() (?&lt;ampm&gt;(AM|PM))?/) || // 10/26/2021, 9:43:06 PM
+      s.match(/(?&lt;hh&gt;\d+):(?&lt;mm&gt;\d+):(?&lt;ss&gt;\d+) (?&lt;ampm&gt;(AM|PM))/); // 9:43:06 PM
   if (!match) return null;
   const y = parseInt(match.groups.y) || 1970;
-  const m = parseInt(match.groups.m) || 0;
-  const d = parseInt(match.groups.d) || 1;
-  const hh = parseInt(match.groups.hh) + (match.groups.ampm == 'PM' || match.groups.ampm == 'pm' ? 12 : 0)
+  const m = parseInt(match.groups.m) || 1; // 1-based
+  const d = parseInt(match.groups.d) || 1; // 1-based
+  const hh = parseInt(match.groups.hh) + (match.groups.ampm == &apos;PM&apos; || match.groups.ampm == &apos;pm&apos; ? 12 : 0)
   const mm = parseInt(match.groups.mm);
   const ss = parseInt(match.groups.ss);
   const ms = parseInt(match.groups.ms) || 0;
-  return new Date(Date.UTC(y, m, d, hh, mm, ss, ms));
+  return new Date(Date.UTC(y, m-1, d, hh, mm, ss, ms)); // uses 0-based month, 1-based day
 }
 
 /**
- * We are given the non-null string name of the log we're currently processing,
+ * We are given the non-null string name of the log we&apos;re currently processing,
  * and the time of the previous log entry (may be null of no previous entries
  * in this log had a time), and a list of non-blank lines followed by blank lines.
- * If the first line doesn't start with '[' then we must have been given trivia
+ * If the first line doesn&apos;t start with &apos;[&apos; then we must have been given trivia
  * and so return null.
  */
 function parse_message(log, prev_time, lines) {
-  // Cleanup: if we're given a message which doesn't start with [, it must have been the initial preamble, so we delete it.
-  // Cleanup: if our message ends in newlines, we'll remove them.
-  // Cleanup: if we don't even have anything left, we'll skip.
-  while (lines.slice(-1)[0] == "") {
+  // Cleanup: if we&apos;re given a message which doesn&apos;t start with [, it must have been the initial preamble, so we delete it.
+  // Cleanup: if our message ends in newlines, we&apos;ll remove them.
+  // Cleanup: if we don&apos;t even have anything left, we&apos;ll skip.
+  while (lines.slice(-1)[0] == &quot;&quot;) {
     lines.pop();
   }
   if (lines.length == 0 || !line_starts_message(lines[0])) {
     return null;
   }
 
-  const message = lines.join("\n");
+  const message = lines.join(&quot;\n&quot;);
 
-  // Gather an initial contiguous sequence of "tags".
+  // Gather an initial contiguous sequence of &quot;tags&quot;.
   // A tag is something enclosed with square brackets, with optional whitespace after the closing square bracket,
-  // that doesn't itself contain any brackets or braces or parentheses.
+  // that doesn&apos;t itself contain any brackets or braces or parentheses.
   // We strip leading and trailing whitespace from tags.
   let s = lines[0];
   let tags = [];
@@ -1348,29 +1372,29 @@ function parse_message(log, prev_time, lines) {
   while (true) {
     const match = s.match(/^\[ *([^\]\{\}\(\)]+)\] */);
     if (!match) break;
-    tags.push(match[1].replace(/ *$/, ""));
+    tags.push(match[1].replace(/ *$/, &quot;&quot;));
     s = s.slice(match[0].length);
   }
 
-  s = s.replace(/^: */,'');
+  s = s.replace(/^: */,&apos;&apos;);
 
   const line = s;
 
-  // The optional "title" is a series of alphanumerics without punctuation
+  // The optional &quot;title&quot; is a series of alphanumerics without punctuation
   let title = null;
   {
-    const match = s.match(/^ *([A-Za-z0-9_][^:'"\{/\[\()]*)([:'"\{\[/\()]) */);
+    const match = s.match(/^ *([A-Za-z0-9_][^:&apos;&quot;\{/\[\()]*)([:&apos;&quot;\{\[/\()]) */);
     if (match) {
-      title = match[1].replace(/ *$/, "");
+      title = match[1].replace(/ *$/, &quot;&quot;);
       s = s.slice(match[0].length);
-      if (match[2] != ":") {
+      if (match[2] != &quot;:&quot;) {
         s = match[2] + s;
       }
     } else {
-      const match2 = s.match(/^ *([A-Za-z0-9_][^:'"\{/\[\()]*)$/);
+      const match2 = s.match(/^ *([A-Za-z0-9_][^:&apos;&quot;\{/\[\()]*)$/);
       if (match2) {
-        title = match2[1].replace(/ *$/, "");
-        s = "";
+        title = match2[1].replace(/ *$/, &quot;&quot;);
+        s = &quot;&quot;;
       }
     }
   }
@@ -1380,9 +1404,9 @@ function parse_message(log, prev_time, lines) {
   // Can we extract any filenames out of the rest of the line?
   let filename = null;
   {
-    const match = (" " + s).match(/([ '"])(\/[0-9A-Za-z/_\-.]*)/);
+    const match = (&quot; &quot; + s).match(/([ &apos;&quot;])(\/[0-9A-Za-z/_\-.]*)/);
     if (match) {
-      filename = match[2].split("\\").pop().split("/").pop();
+      filename = match[2].split(&quot;\\&quot;).pop().split(&quot;/&quot;).pop();
     }
   }
 
@@ -1390,23 +1414,23 @@ function parse_message(log, prev_time, lines) {
   let json = null;
   {
     // attempt 1: start json at the first { or [ we see on the first line, plus all subsequent lines
-    let ji = s.indexOf("{");
-    if (ji == -1) ji = s.indexOf('[');
-    if (ji != -1) json = parse_json_relaxed(s.slice(ji) + "\n" + lines.slice(1).join("\n"));
+    let ji = s.indexOf(&quot;{&quot;);
+    if (ji == -1) ji = s.indexOf(&apos;[&apos;);
+    if (ji != -1) json = parse_json_relaxed(s.slice(ji) + &quot;\n&quot; + lines.slice(1).join(&quot;\n&quot;));
     // attempt 2: look only on subsequent lines
-    if (json == null) json = parse_json_relaxed(lines.slice(1).join("\n"));
+    if (json == null) json = parse_json_relaxed(lines.slice(1).join(&quot;\n&quot;));
   }
 
-  // Does one of the tags look like a timestamp? or have the form "...#..."?
-  // We'll turn tags from a list into an object, with a member 'anon' for an
+  // Does one of the tags look like a timestamp? or have the form &quot;...#...&quot;?
+  // We&apos;ll turn tags from a list into an object, with a member &apos;anon&apos; for an
   // array of the unrecognized ones.
   let time = null;
   let id = null;
   let oldtags = tags;
   tags = { positional: [] };
   const first_tag = oldtags.length == 0 ? null : oldtags[0];
-  if (['INFO','DEBUG','ERROR'].includes(first_tag)) {
-    tags['kind'] = first_tag;
+  if ([&apos;INFO&apos;,&apos;DEBUG&apos;,&apos;ERROR&apos;].includes(first_tag)) {
+    tags[&apos;kind&apos;] = first_tag;
     oldtags.shift();
   }
   for (const tag of oldtags) {
@@ -1416,7 +1440,7 @@ function parse_message(log, prev_time, lines) {
     } else {
       const match_id = tag.match(/^([A-Za-z]*)#.*$/);
       if (match_id) {
-        if (match_id[1] == "") {
+        if (match_id[1] == &quot;&quot;) {
           id = tag;
         } else {
           tags[match_id[1]] = tag;
@@ -1431,30 +1455,30 @@ function parse_message(log, prev_time, lines) {
   // LSP messages have a particular format.
   {
     const match = lines[0].match(
-      /^\[Trace - (?<time>[^\]]*)\] (?<dir>(Sending|Received)) (?<kind>(request|response|notification)) '(?<method_and_id>[^']*)' *(?<body>.*)$/
+      /^\[Trace - (?&lt;time&gt;[^\]]*)\] (?&lt;dir&gt;(Sending|Received)) (?&lt;kind&gt;(request|response|notification)) &apos;(?&lt;method_and_id&gt;[^&apos;]*)&apos; *(?&lt;body&gt;.*)$/
     );
     const lsp_time = match ? tryParseLogTime(match.groups.time) : null;
-    if (match && lsp_time) {
+    if (match &amp;&amp; lsp_time) {
       time = lsp_time;
-      log = `${log == "(default)" ? "" : log + ':'}${match.groups.dir == "Sending" ? "client" : "server"}`;
-      title = match.groups.method_and_id.replace(/ - \(.*\)$/,''); // e.g. 'textDocument/didChange'
+      log = `${log == &quot;(default)&quot; ? &quot;&quot; : log + &apos;:&apos;}${match.groups.dir == &quot;Sending&quot; ? &quot;client&quot; : &quot;server&quot;}`;
+      title = match.groups.method_and_id.replace(/ - \(.*\)$/,&apos;&apos;); // e.g. &apos;textDocument/didChange&apos;
       body = match.groups.body;
       json = lines
         .slice(1)
-        .join("\n")
-        .replace(/^(Result|Params|Error): /, "");
+        .join(&quot;\n&quot;)
+        .replace(/^(Result|Params|Error): /, &quot;&quot;);
       try {
         json = JSON.parse(json);
       } catch (e) {
-        json = null; // includes the case "No result returned"
+        json = null; // includes the case &quot;No result returned&quot;
       }
       // Some traces have json {jsonrpc:, id:, params|result|error: }
       // Others merely have the params/result/error
       let root;
       let kind;
-      if (json?.hasOwnProperty('jsonrpc')) {
+      if (json?.hasOwnProperty(&apos;jsonrpc&apos;)) {
         id = json.id;
-        kind = id == null ? "notification" : json.result != null || json.error != null ? "response" : "request";
+        kind = id == null ? &quot;notification&quot; : json.result != null || json.error != null ? &quot;response&quot; : &quot;request&quot;;
         root = json.params;
       } else {
         const matchid = match.groups.method_and_id.match(/ - \((.*)\)$/);
@@ -1463,25 +1487,25 @@ function parse_message(log, prev_time, lines) {
         root = json;
       }
       // ids generated by the server are in a different namespace from those generated by the client
-      let originate_by_server = (log == "server" || log.endsWith(":server")) ? true : false;
-      if (kind == "response") originate_by_server = !originate_by_server;
-      if (originate_by_server && id != null) id = `s#${id}`;
+      let originate_by_server = (log == &quot;server&quot; || log.endsWith(&quot;:server&quot;)) ? true : false;
+      if (kind == &quot;response&quot;) originate_by_server = !originate_by_server;
+      if (originate_by_server &amp;&amp; id != null) id = `s#${id}`;
       // cancelRequest notification is about this particular id
-      if (title == '$/cancelRequest') id = root.id;
+      if (title == &apos;$/cancelRequest&apos;) id = root.id;
       // for filename, heuristic is to pick either textDocument.uri, or the first didWatcheFilesChanged filename
-      const change0 = root?.changes?.length > 0 ? root?.changes[0] : null;
+      const change0 = root?.changes?.length &gt; 0 ? root?.changes[0] : null;
       const uri = root?.textDocument?.uri || root?.uri || change0?.uri;
-      filename = uri?.split("\\").pop().split("/").pop();
+      filename = uri?.split(&quot;\\&quot;).pop().split(&quot;/&quot;).pop();
 
       tags = { kind };
     }
   }
 
   // Some logs have timestamps that omit the year/month/day; they have only time-of-day.
-  // To handle wraparound at midnight, we'll say that if a such subsequent message
+  // To handle wraparound at midnight, we&apos;ll say that if a such subsequent message
   // is earlier that the previous one, then it must be one day ahead.
-  if (time != null && time.getUTCFullYear() == 1970 && prev_time != null) {
-    while (time < prev_time) time.setUTCDate(time.getUTCDate() + 1);
+  if (time != null &amp;&amp; time.getUTCFullYear() == 1970 &amp;&amp; prev_time != null) {
+    while (time &lt; prev_time) time.setUTCDate(time.getUTCDate() + 1);
   }
   time = time || prev_time;  
 
@@ -1502,22 +1526,22 @@ function parse_message(log, prev_time, lines) {
 /** Heuristic for whether this line starts a message.
  */
 function line_starts_message(line) {
-  return line.startsWith('[')
-    || line.startsWith('INFO [')
-    || line.startsWith('DEBUG [')
-    || line.startsWith('ERROR [');
+  return line.startsWith(&apos;[&apos;)
+    || line.startsWith(&apos;INFO [&apos;)
+    || line.startsWith(&apos;DEBUG [&apos;)
+    || line.startsWith(&apos;ERROR [&apos;);
 }
 
 /**
- * Given the string name of a logfile we're processing (or "(default)" if it
+ * Given the string name of a logfile we&apos;re processing (or &quot;(default)&quot; if it
  * lacks a name), and its content, parse it into a list of messages and 
  * return that list.
  */
 function parse_log(log, lines) {
-  // A log's text is a series of "messages" with trivia between them.
+  // A log&apos;s text is a series of &quot;messages&quot; with trivia between them.
   // A message is defined as starting on a line whose first character
-  // is "[", followed by a series of non-blank lines which themselves
-  // don't start with "[".
+  // is &quot;[&quot;, followed by a series of non-blank lines which themselves
+  // don&apos;t start with &quot;[&quot;.
   let messages = [];
   let prev_time = null;
   let acc = [];
@@ -1534,11 +1558,11 @@ function parse_log(log, lines) {
   prev_time = m?.time || prev_time;
   messages.push(m);
   // Filter out all cases where parse_message return null for it just being trivia
-  messages = messages.filter((m) => m != null);
+  messages = messages.filter((m) =&gt; m != null);
   // Invariant: starting from the first message to have a parseable timestamp,
   // it and all subsequent messages have monotonically ascending timestamps,
   // and none of the earlier ones do, and prev_time is the timestamp of the last message.
-  // We'll use that fact to backfill the timestamp-less messages if possible:
+  // We&apos;ll use that fact to backfill the timestamp-less messages if possible:
   for (const m of messages) {
     if (m.time == null) m.time = prev_time;
   }
@@ -1549,32 +1573,32 @@ function parse_log(log, lines) {
 
 
 /** If the log contains some messages that are fully-dated e.g. 2021-11-18, and
- * other messages maybe from an LSP trace which don't have dates and are stored
+ * other messages maybe from an LSP trace which don&apos;t have dates and are stored
  * starting 1970-01-01, then this method rewrites the undated messages to start
  * at the earliest full date.
- * Note: some logs are entirely undated. They're skipped by this method.
+ * Note: some logs are entirely undated. They&apos;re skipped by this method.
 */
 function reconcile_log_dates(messages) {
   // Context:
-  // Some log formats include dates "2021-11-12 14:44:00" but LSP traces typically don't "2:44:00 PM".
+  // Some log formats include dates &quot;2021-11-12 14:44:00&quot; but LSP traces typically don&apos;t &quot;2:44:00 PM&quot;.
   // How can we support (1) scenario where the addendum has one log that starts on 2021-11-18 and
   // a fully-dated LSP trace that starts on 2021-11-19, the next day? (2) scenario where the user
   // loads an undated LSP trace and wants it to look reasonable? (3) scenario where the user
   // loads an undated LSP trace that starts on 2021-11-19 and then afterwards loads a fully-dated
   // other log that also starts on 2021-11-19 and wants to see them interleaved? (4) reverse
   // where the user first loads the fully-dated other log and then loads the undated LSP trace
-  // where both start on the same day? -- That's what this method achieves.
+  // where both start on the same day? -- That&apos;s what this method achieves.
 
-  // But, when parsing a log, we "increment the date" if ever we see a time followed
+  // But, when parsing a log, we &quot;increment the date&quot; if ever we see a time followed
   // by an earlier time, e.g. 23:50:05 followed by 00:02:03. If there was an undated
-  // log with more than 365 such resets, its year won't be 1970 any longer, and
+  // log with more than 365 such resets, its year won&apos;t be 1970 any longer, and
   // this logic will fail.
   let earliest = null;
   for (const m of messages) {
     if (m.time == null) continue;
     if (m.time.getUTCFullYear() == 1970) continue;
     if (earliest == null) earliest = m.time;
-    if (m.time < earliest) earliest = m.time;
+    if (m.time &lt; earliest) earliest = m.time;
   }
   if (!earliest) return;
   earliest = new Date(earliest);
@@ -1583,8 +1607,8 @@ function reconcile_log_dates(messages) {
   earliest.setUTCSeconds(0);
   earliest.setUTCMilliseconds(0);
   const offset = earliest.valueOf();
-  // e.g. if first timestamp was "2021-11-12 14:44:00", then offset is the number
-  // of milliseconds to add to "1970-01-01 09:17:00" to get "2021-11-12 09:17:00"
+  // e.g. if first timestamp was &quot;2021-11-12 14:44:00&quot;, then offset is the number
+  // of milliseconds to add to &quot;1970-01-01 09:17:00&quot; to get &quot;2021-11-12 09:17:00&quot;
   for (const m of messages) {
     if (m.time == null) continue;
     if (m.time.getUTCFullYear() != 1970) continue;
@@ -1594,9 +1618,9 @@ function reconcile_log_dates(messages) {
 
 /** Given a list of messages, constructs and returns an autocomplete dictionary for it.
  *  Example: this list of messages
- *   [log1] foo {addr: 'hello', age: 47, cols: [1,2,3]}
- *   [log2] bar {addr: 'world', age: 53, cols: []}
- *   [log3] baz {addr: 'there', cols: []}
+ *   [log1] foo {addr: &apos;hello&apos;, age: 47, cols: [1,2,3]}
+ *   [log2] bar {addr: &apos;world&apos;, age: 53, cols: []}
+ *   [log3] baz {addr: &apos;there&apos;, cols: []}
  * produces this dictionary:
  * { title: { hint:[string], nested: null},
  *   json: { hint:[object], nested: {
@@ -1606,23 +1630,23 @@ function reconcile_log_dates(messages) {
  * }
  */
 function build_dictionary(messages) {
-  // We'll first construct everything 'positively' from the members that are present
+  // We&apos;ll first construct everything &apos;positively&apos; from the members that are present
   let dictionary = {};
   if (messages.length == 0) return dictionary;
   let add;
-  add = (dict, prop, value, allowRecurse) => {
+  add = (dict, prop, value, allowRecurse) =&gt; {
     if (dict[prop] == null) dict[prop] = { hint: new Set(), nested: null };
     let type;
-    if (value === null) type = "null";
-    else if (value === "") type = "empty_string";
-    else if (value instanceof Date) type = "Date";
+    if (value === null) type = &quot;null&quot;;
+    else if (value === &quot;&quot;) type = &quot;empty_string&quot;;
+    else if (value instanceof Date) type = &quot;Date&quot;;
     else type = typeof value;
     if (Array.isArray(value)) {
       if (dict[prop].nested == null) dict[prop].nested = {};
       for (const v of value) {
-        add(dict[prop].nested, "ELEMENT", v, true);
+        add(dict[prop].nested, &quot;ELEMENT&quot;, v, true);
       }
-    } else if (type == "object") {
+    } else if (type == &quot;object&quot;) {
       if (allowRecurse) {
         if (dict[prop].nested == null) dict[prop].nested = {};
         for (const [k, v] of Object.entries(value)) {
@@ -1635,25 +1659,25 @@ function build_dictionary(messages) {
   };
   for (const m of messages) {
     for (const [k, v] of Object.entries(m)) {
-      add(dictionary, k, v, k == "json" || k == "tags");
+      add(dictionary, k, v, k == &quot;json&quot; || k == &quot;tags&quot;);
     }
   }
 
-  // Now sprinkly in 'undefined' for members that aren't always present
+  // Now sprinkly in &apos;undefined&apos; for members that aren&apos;t always present
   let undef;
-  undef = (dict, value) => {
-    if (value == null || typeof value != "object") value = {};
+  undef = (dict, value) =&gt; {
+    if (value == null || typeof value != &quot;object&quot;) value = {};
     for (const [k, v] of Object.entries(dict)) {
-      if (k == "ELEMENT") {
+      if (k == &quot;ELEMENT&quot;) {
         if (!Array.isArray(value)) {
-          v.hint.add("undefined");
-        } else if (dict["ELEMENT"].nested != null) {
+          v.hint.add(&quot;undefined&quot;);
+        } else if (dict[&quot;ELEMENT&quot;].nested != null) {
           for (const e of value) {
-            undef(dict["ELEMENT"].nested, e);
+            undef(dict[&quot;ELEMENT&quot;].nested, e);
           }
         }
       } else {
-        if (!value.hasOwnProperty(k)) v.hint.add("undefined");
+        if (!value.hasOwnProperty(k)) v.hint.add(&quot;undefined&quot;);
         if (v.nested != null) undef(dict[k].nested, value[k]);
       }
     }
@@ -1662,43 +1686,43 @@ function build_dictionary(messages) {
     undef(dictionary, m);
   }
 
-  // Now combine all those 'primitive' hints into a hint, and provide extra hints for the top level
+  // Now combine all those &apos;primitive&apos; hints into a hint, and provide extra hints for the top level
   let hintify;
-  hintify = (dict) => {
+  hintify = (dict) =&gt; {
     for (const [k, v] of Object.entries(dict)) {
       let types = [...v.hint];
       if (v.nested != null) {
-        if (v.nested.hasOwnProperty("ELEMENT")) {
-          types.push("array");
-          if (Object.entries(v.nested).length > 1) types.push("object");
+        if (v.nested.hasOwnProperty(&quot;ELEMENT&quot;)) {
+          types.push(&quot;array&quot;);
+          if (Object.entries(v.nested).length &gt; 1) types.push(&quot;object&quot;);
         } else {
-          types.push("object");
+          types.push(&quot;object&quot;);
         }
       }
-      v.hint = types.length == 0 ? "none" : types.join(" | ");
+      v.hint = types.length == 0 ? &quot;none&quot; : types.join(&quot; | &quot;);
       if (v.nested != null) hintify(v.nested);
     }
   };
   hintify(dictionary);
   dictionary.log.hint +=
-    '  -- which logfile it came in; for lsp is "client / server"';
-  dictionary.message.hint += "  -- the entire message";
+    &apos;  -- which logfile it came in; for lsp is &quot;client / server&quot;&apos;;
+  dictionary.message.hint += &quot;  -- the entire message&quot;;
   dictionary.tags.hint +=
-    "  -- a list of any [...] tags at the start of the message, other than time-like ones";
+    &quot;  -- a list of any [...] tags at the start of the message, other than time-like ones&quot;;
   dictionary.time.hint +=
-    "  -- one of the timelike [...] tag from the start of the message";
+    &quot;  -- one of the timelike [...] tag from the start of the message&quot;;
   dictionary.line.hint +=
-    "  -- the first line of the message, after all the tags";
+    &quot;  -- the first line of the message, after all the tags&quot;;
   dictionary.title.hint +=
-    '  -- if line had the form "title: body" then this is the title';
+    &apos;  -- if line had the form &quot;title: body&quot; then this is the title&apos;;
   dictionary.body.hint +=
-    "  -- this is however much of line after the title has been removed";
+    &quot;  -- this is however much of line after the title has been removed&quot;;
   dictionary.id.hint +=
-    "  -- best-guess as to the most important id; for lsp cancellation the id being cancelled";
+    &quot;  -- best-guess as to the most important id; for lsp cancellation the id being cancelled&quot;;
   dictionary.filename.hint +=
-    "  --  best-guess as to an (unqualified) filename found in the message";
+    &quot;  --  best-guess as to an (unqualified) filename found in the message&quot;;
   dictionary.json.hint +=
-    "  -- best-guess if the end of the message looked like json object or array";
+    &quot;  -- best-guess if the end of the message looked like json object or array&quot;;
   return dictionary;
 }
 
@@ -1712,63 +1736,63 @@ function build_dictionary(messages) {
 // ===================================================================
 // ===================================================================
 
-/** Given a filename like "/foo/bar/fred.txt" returns "fred"
+/** Given a filename like &quot;/foo/bar/fred.txt&quot; returns &quot;fred&quot;
  */
 function logname_from_filepath(filepath) {
-  const filename = filepath.split("\\").pop().split("/").pop();
-  const extension = filename.lastIndexOf(".");
-  if (extension >= 3 && extension < filename.length - 3)
+  const filename = filepath.split(&quot;\\&quot;).pop().split(&quot;/&quot;).pop();
+  const extension = filename.lastIndexOf(&quot;.&quot;);
+  if (extension &gt;= 3 &amp;&amp; extension &lt; filename.length - 3)
     return filename.substring(0, extension);
   return filename;
 }
 
 /** Attempt to parse it first as proper json, else as heuristic relaxed json.
- * Returns null if it couldn't be parsed.
- * CARE: we must never 'eval' log input. That's why we use regexps to
+ * Returns null if it couldn&apos;t be parsed.
+ * CARE: we must never &apos;eval&apos; log input. That&apos;s why we use regexps to
  * approximate turning relaxed json into proper json.
  */
 function parse_json_relaxed(s) {
   if (!s.match(/^ *[\[\{]/)) return null;
   try { return JSON.parse(s); } catch (e) {}
-  // relaxed json: we'll use double-quotes not single-quotes for keys and values
-  // This will also affect single-quotes inside values, but it's the log's
+  // relaxed json: we&apos;ll use double-quotes not single-quotes for keys and values
+  // This will also affect single-quotes inside values, but it&apos;s the log&apos;s
   // fault for using relaxed json in the first place so you get what you get...
-  s = s.replace(/'/g, '"');
-  // we'll escape any colons inside values
-  s = s.replace(/:\s*"([^"]*)"/g, function(match, p1) {
-    return ': "' + p1.replace(/:/g, '@colon@') + '"';
+  s = s.replace(/&apos;/g, &apos;&quot;&apos;);
+  // we&apos;ll escape any colons inside values
+  s = s.replace(/:\s*&quot;([^&quot;]*)&quot;/g, function(match, p1) {
+    return &apos;: &quot;&apos; + p1.replace(/:/g, &apos;@colon@&apos;) + &apos;&quot;&apos;;
   })
   // put quotes around unquoted identifiers
-  s = s.replace(/([a-z0-9A-Z_]+):/g, '"$1": ');
+  s = s.replace(/([a-z0-9A-Z_]+):/g, &apos;&quot;$1&quot;: &apos;);
   // undefined
-  s = s.replace(/"([a-z0-9A-Z_]+)":\s*undefined,?/g, '');
+  s = s.replace(/&quot;([a-z0-9A-Z_]+)&quot;:\s*undefined,?/g, &apos;&apos;);
   // unescape colons
-  s = s.replace(/@colon@/g, ':');
+  s = s.replace(/@colon@/g, &apos;:&apos;);
   try { return JSON.parse(s); } catch (e) {}
   return null;
 }
 
-/** Given a string, renders it suitable for html e.g. `<p>${esc(s)}</p>`
+/** Given a string, renders it suitable for html e.g. `&lt;p&gt;${esc(s)}&lt;/p&gt;`
  */
 function esc(s) {
-  if (s == null) return "&nbsp;";
+  if (s == null) return &quot;&amp;nbsp;&quot;;
   return String(s)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
+    .replace(/&amp;/g, &quot;&amp;amp;&quot;)
+    .replace(/&lt;/g, &quot;&amp;lt;&quot;)
+    .replace(/&gt;/g, &quot;&amp;gt;&quot;)
+    .replace(/&quot;/g, &quot;&amp;quot;&quot;)
+    .replace(/&apos;/g, &quot;&amp;apos;&quot;);
 }
 
 /** Pads a number with leading zeros to take it up to length 2,
- * or some other number specified in 'n'. */
+ * or some other number specified in &apos;n&apos;. */
 function pad2(s, n) {
   s = String(s);
-  while (s.length < (n || 2)) s = "0" + s;
+  while (s.length &lt; (n || 2)) s = &quot;0&quot; + s;
   return s;
 };
 
-/** Given a Date object, returns an dateless and millisecondless "18:23:15" time to show
+/** Given a Date object, returns an dateless and millisecondless &quot;18:23:15&quot; time to show
  * next to the message
  */
  function formatCompactTime(time) {
@@ -1779,14 +1803,14 @@ function pad2(s, n) {
 }
 
 
-/** We strive to display time-control with just times "18:23:15" even though logs have
- * full dates "2021-11-13 18:23:15", and some undated logs like LSP have epoch-relative
- * full dates "1970-01-01 18:23:15". We do this with reference to a "reference time"
- * which is the date part "2021-11-13 / 1970-01-01" of the first log message to have a time.
+/** We strive to display time-control with just times &quot;18:23:15&quot; even though logs have
+ * full dates &quot;2021-11-13 18:23:15&quot;, and some undated logs like LSP have epoch-relative
+ * full dates &quot;1970-01-01 18:23:15&quot;. We do this with reference to a &quot;reference time&quot;
+ * which is the date part &quot;2021-11-13 / 1970-01-01&quot; of the first log message to have a time.
  * This function returns that reference time.
  */
 function referenceForTimeControl(messages) {
-  const m = messages.find(m => m.time != null);
+  const m = messages.find(m =&gt; m.time != null);
   if (!m) return null;
   let t = new Date(m.time);
   t.setUTCHours(0);
@@ -1797,85 +1821,85 @@ function referenceForTimeControl(messages) {
 }
 
 /** Given a Date object, returns something for the time controls to show.
- * We make use of a "reference date" derived from the messages list.
- * For instance, given reference date "2021-11-13" then we'd display
- * "2021-11-14 18:23:15.123" as "18:23:15.123 (+1day)"
- * Note: this also works if the reference date is "1970-01-01" indicating
- * an undated log, and the date we're given is "1970-01-01"
+ * We make use of a &quot;reference date&quot; derived from the messages list.
+ * For instance, given reference date &quot;2021-11-13&quot; then we&apos;d display
+ * &quot;2021-11-14 18:23:15.123&quot; as &quot;18:23:15.123 (+1day)&quot;
+ * Note: this also works if the reference date is &quot;1970-01-01&quot; indicating
+ * an undated log, and the date we&apos;re given is &quot;1970-01-01&quot;
  * If no reference time is provided, then the user has no business using
- * time filters, so we'll solely display the time part.
+ * time filters, so we&apos;ll solely display the time part.
  */
 function formatTimeControl(time, messages) {
-  const ms = time.getUTCMilliseconds() == 0 ? "" : "." + pad2(time.getUTCMilliseconds(), 3);
+  const ms = time.getUTCMilliseconds() == 0 ? &quot;&quot; : &quot;.&quot; + pad2(time.getUTCMilliseconds(), 3);
   const hms = `${formatCompactTime(time)}${ms}`;
   const ref = referenceForTimeControl(messages);
   if (ref == null) return hms;
-  // Calculate number of days between 'ref' and 'time'
-  // We'll do it by constructing UTC objects, since they don't have daylight saving
+  // Calculate number of days between &apos;ref&apos; and &apos;time&apos;
+  // We&apos;ll do it by constructing UTC objects, since they don&apos;t have daylight saving
   // and hence each day is exactly 24hrs long always.
   const start = Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate());
   const end = Date.UTC(time.getUTCFullYear(), time.getUTCMonth(), time.getUTCDate());
-  const plusDays = Math.round((start - end) / (1000 * 60 * 60 * 24));
+  const plusDays = Math.round((end - start) / (1000 * 60 * 60 * 24));
   if (plusDays == 0) return hms;
-  return `${hms} (${plusDays > 0 ? "+" : "-"}${Math.abs(plusDays)}${Math.abs(plusDays) == 1 ? "" : "s"})`;
+  return `${hms} (${plusDays &gt; 0 ? &quot;+&quot; : &quot;-&quot;}${Math.abs(plusDays)}day${Math.abs(plusDays) == 1 ? &quot;&quot; : &quot;s&quot;})`;
 }
 
 /** Given a string from a time control, parses it into a time. This is recognized:
- *   null/empty string -> returns null
+ *   null/empty string -&gt; returns null
  *   yyyy-mm-dd hh:mm:ss(.mmm)?
  * If the messages list provides a reference date, then we also recognize:
- *   hh:mm:ss(.mmm)? -> uses yyyy-mm-dd from reference date
- *   hh:mm:ss(.mmm)? (+|-D ?days?) -> D days before or after the reference date
- * If a Date object "relativeTo" is provided then a few additional formats are recognized:
+ *   hh:mm:ss(.mmm)? -&gt; uses yyyy-mm-dd from reference date
+ *   hh:mm:ss(.mmm)? (+|-D ?days?) -&gt; D days before or after the reference date
+ * If a Date object &quot;relativeTo&quot; is provided then a few additional formats are recognized:
  *   (+|-)N s(econds)?|m(inutes)?|h(ours)?
- * If the string can't be parsed, throw a descriptive human-readable exception text
+ * If the string can&apos;t be parsed, throw a descriptive human-readable exception text
  */
 function parseTimeControl(time, messages, relativeTo) {
-  if (time == null || time == "") return null;
+  if (time == null || time == &quot;&quot;) return null;
   if (time.match(/^\d\d\d/) || time.match(/^\d+\//)) {
     // starts with year
     const match = time.match(
-      /^(?<y>\d+)-(?<m>\d+)-(?<d>\d+) (?<hh>\d+):(?<mm>\d+):(?<ss>\d+)(\.(?<ms>\d\d\d))?$/
+      /^(?&lt;y&gt;\d+)-(?&lt;m&gt;\d+)-(?&lt;d&gt;\d+) (?&lt;hh&gt;\d+):(?&lt;mm&gt;\d+):(?&lt;ss&gt;\d+)(\.(?&lt;ms&gt;\d\d\d))?$/
     );
-    if (!match) throw new Error("expected yyyy-mm-dd hh:mm:ss");
-    const y = parseInt(match.groups.y)
-    const m = parseInt(match.groups.m)
-    const d = parseInt(match.groups.d)
+    if (!match) throw new Error(&quot;expected yyyy-mm-dd hh:mm:ss&quot;);
+    const y = parseInt(match.groups.y);
+    const m = parseInt(match.groups.m); // 1-based
+    const d = parseInt(match.groups.d); // 1-based
     const hh = parseInt(match.groups.hh);
     const mm = parseInt(match.groups.mm);
     const ss = parseInt(match.groups.ss);
     const ms = parseInt(match.groups.ms) || 0;
-    return new Date(Date.UTC(y, m, d, hh, mm, ss, ms));
+    return new Date(Date.UTC(y, m-1, d, hh, mm, ss, ms)); // uses 0-based month, 1-based day
   } else if (time.match(/^\d/)) {
     // starts with hours
-    const match = time.match(/^(?<hh>\d+):(?<mm>\d+):(?<ss>\d+)(\.(?<ms>\d\d\d))?(?<rest>.*)$/)
-    if (!match) throw new Error("expected hh:mm:ss")
+    const match = time.match(/^(?&lt;hh&gt;\d+):(?&lt;mm&gt;\d+):(?&lt;ss&gt;\d+)(\.(?&lt;ms&gt;\d\d\d))?(?&lt;rest&gt;.*)$/)
+    if (!match) throw new Error(&quot;expected hh:mm:ss&quot;)
     const ref = referenceForTimeControl(messages);
-    if (ref == null) throw new Error("no log messages have any times in them");
+    if (ref == null) throw new Error(&quot;no log messages have any times in them&quot;);
     const hh = parseInt(match.groups.hh);
     const mm = parseInt(match.groups.mm);
     const ss = parseInt(match.groups.ss);
     const ms = parseInt(match.groups.ms) || 0;
     let t = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate(), hh, mm, ss, ms));
     if (!match.groups.rest) return t;
-    const match2 = match.groups.rest.match(/^ \((?<plusminus>\+|-)? (?<days>\d+) ?days?\)/);
-    if (!match2) throw new Error("expected hh:mm:ss (+Ndays)");
-    const plusDays = match2.groups.days * (match2.groups.plusminus == "+" ? 1 : -1);
+    const match2 = match.groups.rest.match(/^ \((?&lt;plusminus&gt;\+|-)?(?&lt;days&gt;\d+) ?(d|day|days)?\)$/);
+    if (!match2) throw new Error(&quot;expected hh:mm:ss (+Ndays)&quot;);
+    const plusDays = match2.groups.days * (match2.groups.plusminus == &quot;+&quot; ? 1 : -1);
     t.setUTCDate(t.getUTCDate() + plusDays)
     return t;
-  } else if (time.charAt(0) == "+" || time.charAt(0) == "-") {
-    if (relativeTo == null) throw new Error("need start for +N relative times");
+  } else if (time.charAt(0) == &quot;+&quot; || time.charAt(0) == &quot;-&quot;) {
+    if (relativeTo == null) throw new Error(&quot;need start for +N relative times&quot;);
     const match = time.match(
       /^(\+|-)(\d+) ?(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hour|hours)$/
     );
-    if (!match) throw new Error("expected +N h|m|s");
-    const n = parseInt(match[2]) * (time.charAt() == "+" ? 1 : -1);
+    if (!match) throw new Error(&quot;expected +N h|m|s&quot;);
+    const n = parseInt(match[2]) * (time.charAt() == &quot;+&quot; ? 1 : -1);
     const unit = match[3].charAt(0);
     const r = new Date(relativeTo.getTime());
-    if (unit == "s") r.setUTCSeconds(r.getUTCSeconds() + n);
-    else if (unit == "m") r.setUTCMinutes(r.getUTCMinutes() + n);
-    else if (unit == "h") r.setUTCHours(r.getUTCHours() + n);
-    else throw new Error("unexpected time unit");
+    if (unit == &quot;s&quot;) r.setUTCSeconds(r.getUTCSeconds() + n);
+    else if (unit == &quot;m&quot;) r.setUTCMinutes(r.getUTCMinutes() + n);
+    else if (unit == &quot;h&quot;) r.setUTCHours(r.getUTCHours() + n);
+    else throw new Error(&quot;unexpected time unit&quot;);
     return r;
   } else {
     throw new Error(`expected hh:mm:ss or +N h|m|s`);
@@ -1887,47 +1911,47 @@ function parseTimeControl(time, messages, relativeTo) {
  */
  function hash(s) {
 let hash = 0x811c9dc5;
-  for (let i=0; i<s.length; i++) {
+  for (let i=0; i&lt;s.length; i++) {
     hash ^= s.charCodeAt(i);
-    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+    hash += (hash &lt;&lt; 1) + (hash &lt;&lt; 4) + (hash &lt;&lt; 7) + (hash &lt;&lt; 8) + (hash &lt;&lt; 24);
   }
   return Math.abs(hash);
 }
 
-/** Given a string like "id + title", this returns a function which
- * takes message 'm' and returns the result of evaluating the string
+/** Given a string like &quot;id + title&quot;, this returns a function which
+ * takes message &apos;m&apos; and returns the result of evaluating the string
  * If there are errors constructing the function, e.g. parse errors,
- * they're not reported immediately; instead we return a function which
+ * they&apos;re not reported immediately; instead we return a function which
  * will throw that error. In this way parse errors are produced lazily
  * just like evaluation errors.
  * Security notice: these strings come from the URL query string, which is
- * an untrusted source -- imagine if the string were 'new XMLHttpRequest().put()'.
- * We're going to restrict the string from accessing 'this' nor any top-level
+ * an untrusted source -- imagine if the string were &apos;new XMLHttpRequest().put()&apos;.
+ * We&apos;re going to restrict the string from accessing &apos;this&apos; nor any top-level
  * symbols other than a whitelist. https://stackoverflow.com/a/69750236
  */
 function make_fn(expr) {
-  const whitelist = ['Math', 'Array', 'String', 'JSON']; // Warning: not 'Function'
+  const whitelist = [&apos;Math&apos;, &apos;Array&apos;, &apos;String&apos;, &apos;JSON&apos;]; // Warning: not &apos;Function&apos;
   let scope = {};
   for (let obj = window; obj; obj = Object.getPrototypeOf(obj)) {
-    Object.getOwnPropertyNames(obj).forEach(name => scope[name] = undefined);
+    Object.getOwnPropertyNames(obj).forEach(name =&gt; scope[name] = undefined);
   }
-  whitelist.forEach(name => scope[name] = window[name]);
+  whitelist.forEach(name =&gt; scope[name] = window[name]);
   try {
     const fn = Function(
-      "scope",
-      "log",
-      "message",
-      "tags",
-      "time",
-      "line",
-      "title",
-      "body",
-      "id",
-      "filename",
-      "json",
-      "with (scope) return " + expr
+      &quot;scope&quot;,
+      &quot;log&quot;,
+      &quot;message&quot;,
+      &quot;tags&quot;,
+      &quot;time&quot;,
+      &quot;line&quot;,
+      &quot;title&quot;,
+      &quot;body&quot;,
+      &quot;id&quot;,
+      &quot;filename&quot;,
+      &quot;json&quot;,
+      &quot;with (scope) return &quot; + expr
     ).bind({});
-    return (m) =>
+    return (m) =&gt;
       fn(
         scope,
         m.log,
@@ -1942,181 +1966,46 @@ function make_fn(expr) {
         m.json
       );
   } catch (e) {
-    return (m) => {
+    return (m) =&gt; {
       throw e;
     };
   }
 }
 
 /** Given hue, saturation, lightness each in range [0..1],
- * returns an rgb string "#rrggbb" for that color.
+ * returns an rgb string &quot;#rrggbb&quot; for that color.
  */
 function hsl(h, s, l) {
   let r, g, b;
   if (s == 0) {
     r = g = b = l;
   } else {
-    const f = (p, q, t) => {
-      if (t < 0) t += 1;
-      else if (t > 1) t -= 1;
-      if (t < 1 / 6) return p + (q - p) * 6 * t;
-      else if (t < 1 / 2) return q;
-      else if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+    const f = (p, q, t) =&gt; {
+      if (t &lt; 0) t += 1;
+      else if (t &gt; 1) t -= 1;
+      if (t &lt; 1 / 6) return p + (q - p) * 6 * t;
+      else if (t &lt; 1 / 2) return q;
+      else if (t &lt; 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
       else return p;
     };
-    let q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    let q = l &lt; 0.5 ? l * (1 + s) : l + s - l * s;
     let p = 2 * l - q;
     r = f(p, q, h + 1 / 3);
     g = f(p, q, h);
     b = f(p, q, h - 1 / 3);
   }
-  const x = (i) => {
+  const x = (i) =&gt; {
     let s = Math.round(i * 255).toString(16);
-    while (s.length < 2) s = "0" + s;
-    if (s.length > 2) s = "FF";
+    while (s.length &lt; 2) s = &quot;0&quot; + s;
+    if (s.length &gt; 2) s = &quot;FF&quot;;
     return s;
   };
   return `#${x(r)}${x(g)}${x(b)}`;
-}
-
-  </script>
-</head>
-<body>Sea of logs</body>
+}&lt;/script&gt;@"></iframe>
+</body>
 </html>
 <!--
-==> rust_analyzer.txt <==
-INFO [10/26/2021, 9:43:06 PM]: Extension version: 0.2.792
-INFO [10/26/2021, 9:43:06 PM]: Using configuration {
-  cargoRunner: null,
-  runnableEnv: null,
-  inlayHints: {
-    enable: true,
-    smallerHints: true,
-    chainingHints: true,
-    maxLength: 25,
-    parameterHints: true,
-    typeHints: true
-  },
-  updates: { channel: 'stable', askBeforeDownload: false },
-  server: { path: null, extraEnv: null },
-  trace: { server: 'verbose', extension: true },
-  debug: {
-    engine: 'auto',
-    sourceFileMap: {
-      '/rustc/<id>': '${env:USERPROFILE}/.rustup/toolchains/<toolchain-id>/lib/rustlib/src/rust'
-    },
-    openDebugPane: false,
-    engineSettings: {}
-  },
-  assist: {
-    importGranularity: 'crate',
-    importEnforceGranularity: false,
-    importPrefix: 'plain',
-    importGroup: true,
-    allowMergingIntoGlobImports: true
-  },
-  callInfo: { full: true },
-  cargo: {
-    autoreload: true,
-    allFeatures: false,
-    unsetTest: [ 'core' ],
-    features: [],
-    runBuildScripts: true,
-    useRustcWrapperForBuildScripts: true,
-    noDefaultFeatures: false,
-    target: null,
-    noSysroot: false
-  },
-  checkOnSave: {
-    enable: true,
-    allFeatures: null,
-    allTargets: true,
-    command: 'check',
-    noDefaultFeatures: null,
-    target: null,
-    extraArgs: [],
-    features: null,
-    overrideCommand: null
-  },
-  completion: {
-    addCallArgumentSnippets: true,
-    addCallParenthesis: true,
-    snippets: {},
-    postfix: { enable: true },
-    autoimport: { enable: true },
-    autoself: { enable: true }
-  },
-  diagnostics: {
-    enable: true,
-    enableExperimental: true,
-    disabled: [],
-    remapPrefix: {},
-    warningsAsHint: [],
-    warningsAsInfo: []
-  },
-  experimental: { procAttrMacros: true },
-  files: { watcher: 'client', excludeDirs: [] },
-  highlightRelated: {
-    references: true,
-    exitPoints: true,
-    breakPoints: true,
-    yieldPoints: true
-  },
-  highlighting: { strings: true },
-  hover: { documentation: true, linksInHover: true },
-  hoverActions: {
-    debug: true,
-    enable: true,
-    gotoTypeDef: true,
-    implementations: true,
-    references: false,
-    run: true
-  },
-  joinLines: {
-    joinElseIf: true,
-    removeTrailingComma: true,
-    unwrapTrivialBlock: true,
-    joinAssignments: true
-  },
-  lens: {
-    debug: true,
-    enable: true,
-    implementations: true,
-    run: true,
-    methodReferences: false,
-    references: false,
-    enumVariantReferences: false,
-    forceCustomCommands: true
-  },
-  linkedProjects: [],
-  lruCapacity: null,
-  notifications: { cargoTomlNotFound: true },
-  procMacro: { enable: true, server: null },
-  runnables: { overrideCargo: null, cargoExtraArgs: [] },
-  rustcSource: null,
-  rustfmt: {
-    extraArgs: [],
-    overrideCommand: null,
-    enableRangeFormatting: false
-  },
-  workspace: { symbol: { search: { scope: 'workspace', kind: 'only_types' } } }
-}
-INFO [10/26/2021, 9:43:06 PM]: PersistentState: {
-  lastCheck: undefined,
-  nightlyReleaseId: undefined,
-  serverVersion: '0.2.792'
-}
-INFO [10/26/2021, 9:43:06 PM]: Using server binary at /Users/ljw/Library/Application Support/Code/User/globalStorage/matklad.rust-analyzer/rust-analyzer-x86_64-apple-darwin
-DEBUG [10/26/2021, 9:43:06 PM]: Checking availability of a binary at /Users/ljw/Library/Application Support/Code/User/globalStorage/matklad.rust-analyzer/rust-analyzer-x86_64-apple-darwin
-DEBUG [10/26/2021, 9:43:06 PM]: /Users/ljw/Library/Application Support/Code/User/globalStorage/matklad.rust-analyzer/rust-analyzer-x86_64-apple-darwin --version: {
-  status: 0,
-  signal: null,
-  output: [ null, 'rust-analyzer 1f47693e0 2021-10-25 stable\n', '' ],
-  pid: 21970,
-  stdout: 'rust-analyzer 1f47693e0 2021-10-25 stable\n',
-  stderr: ''
-}
-
+ci
 ==> lsp.txt <==
 [Trace - 9:43:06 PM] Sending request 'initialize - (0)'.
 Params: {
@@ -5393,3 +5282,136 @@ Params: {
     }
 }
 
+
+==> rust_analyzer.txt <==
+INFO [10/26/2021, 9:43:06 PM]: Extension version: 0.2.792
+INFO [10/26/2021, 9:43:06 PM]: Using configuration {
+  cargoRunner: null,
+  runnableEnv: null,
+  inlayHints: {
+    enable: true,
+    smallerHints: true,
+    chainingHints: true,
+    maxLength: 25,
+    parameterHints: true,
+    typeHints: true
+  },
+  updates: { channel: 'stable', askBeforeDownload: false },
+  server: { path: null, extraEnv: null },
+  trace: { server: 'verbose', extension: true },
+  debug: {
+    engine: 'auto',
+    sourceFileMap: {
+      '/rustc/<id>': '${env:USERPROFILE}/.rustup/toolchains/<toolchain-id>/lib/rustlib/src/rust'
+    },
+    openDebugPane: false,
+    engineSettings: {}
+  },
+  assist: {
+    importGranularity: 'crate',
+    importEnforceGranularity: false,
+    importPrefix: 'plain',
+    importGroup: true,
+    allowMergingIntoGlobImports: true
+  },
+  callInfo: { full: true },
+  cargo: {
+    autoreload: true,
+    allFeatures: false,
+    unsetTest: [ 'core' ],
+    features: [],
+    runBuildScripts: true,
+    useRustcWrapperForBuildScripts: true,
+    noDefaultFeatures: false,
+    target: null,
+    noSysroot: false
+  },
+  checkOnSave: {
+    enable: true,
+    allFeatures: null,
+    allTargets: true,
+    command: 'check',
+    noDefaultFeatures: null,
+    target: null,
+    extraArgs: [],
+    features: null,
+    overrideCommand: null
+  },
+  completion: {
+    addCallArgumentSnippets: true,
+    addCallParenthesis: true,
+    snippets: {},
+    postfix: { enable: true },
+    autoimport: { enable: true },
+    autoself: { enable: true }
+  },
+  diagnostics: {
+    enable: true,
+    enableExperimental: true,
+    disabled: [],
+    remapPrefix: {},
+    warningsAsHint: [],
+    warningsAsInfo: []
+  },
+  experimental: { procAttrMacros: true },
+  files: { watcher: 'client', excludeDirs: [] },
+  highlightRelated: {
+    references: true,
+    exitPoints: true,
+    breakPoints: true,
+    yieldPoints: true
+  },
+  highlighting: { strings: true },
+  hover: { documentation: true, linksInHover: true },
+  hoverActions: {
+    debug: true,
+    enable: true,
+    gotoTypeDef: true,
+    implementations: true,
+    references: false,
+    run: true
+  },
+  joinLines: {
+    joinElseIf: true,
+    removeTrailingComma: true,
+    unwrapTrivialBlock: true,
+    joinAssignments: true
+  },
+  lens: {
+    debug: true,
+    enable: true,
+    implementations: true,
+    run: true,
+    methodReferences: false,
+    references: false,
+    enumVariantReferences: false,
+    forceCustomCommands: true
+  },
+  linkedProjects: [],
+  lruCapacity: null,
+  notifications: { cargoTomlNotFound: true },
+  procMacro: { enable: true, server: null },
+  runnables: { overrideCargo: null, cargoExtraArgs: [] },
+  rustcSource: null,
+  rustfmt: {
+    extraArgs: [],
+    overrideCommand: null,
+    enableRangeFormatting: false
+  },
+  workspace: { symbol: { search: { scope: 'workspace', kind: 'only_types' } } }
+}
+INFO [10/26/2021, 9:43:06 PM]: PersistentState: {
+  lastCheck: undefined,
+  nightlyReleaseId: undefined,
+  serverVersion: '0.2.792'
+}
+INFO [10/26/2021, 9:43:06 PM]: Using server binary at /Users/ljw/Library/Application Support/Code/User/globalStorage/matklad.rust-analyzer/rust-analyzer-x86_64-apple-darwin
+DEBUG [10/26/2021, 9:43:06 PM]: Checking availability of a binary at /Users/ljw/Library/Application Support/Code/User/globalStorage/matklad.rust-analyzer/rust-analyzer-x86_64-apple-darwin
+DEBUG [10/26/2021, 9:43:06 PM]: /Users/ljw/Library/Application Support/Code/User/globalStorage/matklad.rust-analyzer/rust-analyzer-x86_64-apple-darwin --version: {
+  status: 0,
+  signal: null,
+  output: [ null, 'rust-analyzer 1f47693e0 2021-10-25 stable\n', '' ],
+  pid: 21970,
+  stdout: 'rust-analyzer 1f47693e0 2021-10-25 stable\n',
+  stderr: ''
+}

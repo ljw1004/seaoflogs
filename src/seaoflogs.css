@@ -1,0 +1,176 @@
+html {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+  }
+
+  body {
+    margin: 0;
+    height: 100%;
+    width: 100%;
+    background-color: white;
+    color: black;
+  }
+
+  table {
+    height: 100%;
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  #left {
+    position: fixed;
+    width: 20%;
+    height: 100%;
+    background-color: lightgray;
+    vertical-align: top;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  #perf {
+    display: none;
+    font-size: small;
+  }
+
+  #right {
+    margin: 0;
+    margin-left: 20%;
+    width: 80%;
+    font-size: small;
+    padding: 0;
+  }
+
+  #title a {
+    color: black;
+    text-decoration: none;
+  }
+
+  #title a:visited {
+    color: black;
+  }
+
+  .message,
+  .background {
+    margin: 0.5ex;
+  }
+
+  .messagetext {
+    cursor: grab;
+  }
+
+  .messagetime {
+    cursor: zoom-in;
+  }
+
+  #backgrounds,
+  #messages {
+    position: absolute;
+    width: 80%;
+    height: 100%;
+    margin: 0;
+  }
+
+  #connectors {
+    position: absolute;
+    width: 80%;
+    height: 100%;
+    margin: 0;
+  }
+
+  #left textarea {
+    font-family: sans-serif;
+    width: 92%;
+  }
+
+  .messagetime,
+  .logcount {
+    font-size: xx-small;
+    color: gray;
+    font-family: monospace;
+  }
+
+  .error {
+    color: red;
+    background-color: #500000;
+    border: solid thin red;
+    margin: 0.5ex 1em 0.5ex 0.2em;
+    font-size: small;
+    padding: 0.5ex;
+  }
+
+  #popup {
+    font-size: x-small;
+    font-family: monospace;
+    position: absolute;
+    white-space: pre;
+    display: none;
+    max-width: 50em;
+    max-height: 20em;
+    overflow: auto;
+    border: solid thin black;
+    background-color: #F0F0F0;
+  }
+
+  #menu {
+    position: fixed;
+    display: none;
+  }
+
+  #menu select::-webkit-scrollbar {
+    display: none;
+  }
+
+  #menu select::-moz-scrollbar {
+    display: none;
+  }
+
+  #menu select::-o-scrollbar {
+    display: none;
+  }
+
+  #menu select::-google-ms-scrollbar {
+    display: none;
+  }
+
+  #menu select::-khtml-scrollbar {
+    display: none;
+  }
+
+  #menu #autocomplete {
+    font-size: small;
+    background-color: #f0f0f0;
+    border: solid thin black;
+    padding: 0.2ex;
+    z-index: 100;
+    box-shadow: 0 0 1ex 1ex black;
+  }
+
+  .autocomplete_name {
+    padding-right: 1em;
+  }
+
+  .autocomplete_hint {
+    font-style: italic;
+    color: darkgreen;
+  }
+
+  #load {
+    opacity: 0;
+    position: absolute;
+    z-index: -1;
+  }
+
+  #loadbutton {
+    font-size: smaller;
+    cursor: arrow;
+    background-color: #f0f0f0;
+    padding: 0.2ex;
+    border: solid thin black;
+    border-radius: 0.5ex;
+  }
+
+  #loadbutton:hover {
+    background-color: #f0f0FF;
+  }
+  
