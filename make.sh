@@ -12,5 +12,5 @@ INDEX=${INDEX//@@@CSS@@@/$CSS}
 INDEX=${INDEX//@@@JS@@/$JS}
 echo "$INDEX" > index.html
 cp index.html demo.html
-( cd demo_src && tail -n +1 * ) >> demo.html
+( cd demo_src && tail -n +1 * ) | sed 's/-->/-- >/g' >> demo.html
 

@@ -85,7 +85,7 @@ Parsing is still a work in progress. If you have a reasonable log format that ca
 # Make a self-contained html file by concatenating
 
 $ cp seaoflogs/index.html mylog.html
-$ tail -n +1 ~/logs/* | sed 's/-->/-- >/' >> mylog.html
+$ tail -n +1 ~/logs/* | sed 's/-->/-- >/g' >> mylog.html
 ```
 
 **Self-hosted**. If you have a webserver that can serve up dynamic content, you can lock down seaoflogs further. Your webserver will serve up a page like this. The idea is that your page can embed seaoflogs in an iframe whose sole permission is `sandbox="allow-scripts"`, i.e. denying it even the ability to make same-origin fetch/XmlHttpRequest API calls other than the always-allowed request for stylesheet and script src. The reason this works is your server can hard-code initial values for seaoflogs (the initial query params, the log content, and the origin for the containing page), hence we don't even need same-origin access to initialize it, and hence we can deny it same-origin privileges.
