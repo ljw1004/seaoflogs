@@ -191,8 +191,8 @@ function control_handler(event) {
   let timeout = message_burden > 10000 ? 1000 : message_burden > 3000 ? 250 : 50;
   let update_url = true;
 
-  if (event.type == "init") {
-    // upon init, we only have a short timeout to allow the screen to render;
+  if (event.type == "init" || event.type == "load") {
+    // upon init and load, we'll only have a short timeout to allow the screen to render;
     // we want the messages to be recomputed as soon as rendering is done.
     timeout = 1;
   } else if (event.type == "resize") {
