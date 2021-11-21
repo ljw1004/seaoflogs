@@ -86,7 +86,7 @@ window.onload = (_) => {
  */
 function init(params, target, logs_src) {
   // Chrome treats local files specially: they all have target 'null' for purposes of postMessage
-  global_target = (window.chrome != null && target == "file://") ? null : target;
+  global_target = target;
   global_messages = [];
   global_log_counts = {};
 

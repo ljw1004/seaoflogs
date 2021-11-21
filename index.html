@@ -8,7 +8,9 @@
     <script>
       window.onload = (_) => {
         const params = new URLSearchParams(window.location.search);
-        const target = location.origin;
+        const target = (window.chrome != null && location.origin == "file://") ? null : location.origin;
+        // chrome: to avoid "The target origin provided ('file://') does not match the recipient window's origin ('null')""
+        console.log(`TARGET=${target}`);
         const logs = [...document.getElementsByTagName("body")[0].childNodes]
           .filter((c) => c.nodeType == Node.COMMENT_NODE)
           .reverse()[0].data;
@@ -16,8 +18,9 @@
       }
 
       window.onmessage = (e) => {
-        if (e.origin != document.location.origin) return;
-        const url = window.location.href.replace(/\?.*$/, "") + (e.data.length == 0 ? "" : "?" + e.data);
+        console.log(`e.origin=${typeof e.origin} : ${e.origin}, location.origin=${location.origin}`);
+        if (e.origin != location.origin) return;
+        const url = location.href.replace(/\?.*$/, "") + (e.data.length == 0 ? "" : "?" + e.data);
         history.replaceState(null, null, url);
       }
   </script>
@@ -288,7 +291,7 @@ window.onload = (_) =&gt; {
  */
 function init(params, target, logs_src) {
   // Chrome treats local files specially: they all have target &apos;null&apos; for purposes of postMessage
-  global_target = (window.chrome != null &amp;&amp; target == &quot;file://&quot;) ? null : target;
+  global_target = target;
   global_messages = [];
   global_log_counts = {};
 
