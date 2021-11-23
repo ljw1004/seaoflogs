@@ -12,12 +12,13 @@
         const logs = [...document.getElementsByTagName("body")[0].childNodes]
           .filter((c) => c.nodeType == Node.COMMENT_NODE)
           .reverse()[0].data;
-        document.getElementsByTagName("iframe")[0].contentWindow.init(params, target, logs);
+        const nonce = "unused";
+        document.getElementsByTagName("iframe")[0].contentWindow.init(params, target, nonce, logs);
       }
 
       window.onmessage = (e) => {
         if (e.origin == location.origin || (window.chrome != null && e.origin == "null" && location.origin == "file://")) {
-          const url = location.href.replace(/\?.*$/, "") + (e.data.length == 0 ? "" : "?" + e.data);
+          const url = location.href.replace(/\?.*$/, "") + (e.data.length == 0 ? "" : "?" + e.data.params);
           history.replaceState(null, null, url);
         }
       }

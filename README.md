@@ -88,13 +88,21 @@ $ cp seaoflogs/index.html mylog.html
 $ tail -n +1 ~/logs/* | sed 's/-->/-- >/g' >> mylog.html
 ```
 
-**Self-hosted**. If you have a webserver that can serve up dynamic content, you can lock down seaoflogs further. Your webserver will serve up a page like this. The idea is that your page can embed seaoflogs in an iframe whose sole permission is `sandbox="allow-scripts"`, i.e. denying it even the ability to make same-origin fetch/XmlHttpRequest API calls other than the always-allowed request for stylesheet and script src. The reason this works is your server can hard-code initial values for seaoflogs (the initial query params, the log content, and the origin for the containing page), hence we don't even need same-origin access to initialize it, and hence we can deny it same-origin privileges.
+**Self-hosted**. If you have a webserver that can serve up dynamic content, you can lock down seaoflogs further.
+Your webserver will serve up a page like this. The idea is that your page can embed seaoflogs in an iframe whose
+sole permission is `sandbox="allow-scripts"`, i.e. denying it even the ability to make same-origin
+fetch/XmlHttpRequest API calls other than the always-allowed request for stylesheet and script src.
+The reason this works is your server can hard-code initial values for seaoflogs (the initial query params,
+the log content, and the origin for the containing page), hence we don't even need same-origin access to initialize it,
+and hence we can deny it same-origin privileges.
+Sea-of-logs will do `postMessage({nonce, params}, target)` when it wants the page query params to be changed,
+sent to the `seaoflogs_target` and with the `seaoflogs_nonce` that were specified.
 ```
 <!DOCTYPE html>
 <html>
 <head>
   <style type="text/css">html, body, iframe {width: 100%; height: 100%; margin: 0; overflow: hidden;}</style>
-  <script>window.onmessage = (e) => history.replaceState(null, null, window.location.href.replace(/\?.*$/, '?' + e.data));</script>
+  <script>window.onmessage = (e) => if (e.data.nonce == [NONCE]) history.replaceState(null, null, window.location.href.replace(/\?.*$/, '?' + e.data.params));</script>
 </head>
 <body>
   <iframe srcdoc=[ESCAPED_FRAME_CONTENT] sandbox="allow-scripts" />
@@ -107,6 +115,7 @@ $ tail -n +1 ~/logs/* | sed 's/-->/-- >/g' >> mylog.html
 <head>
   <meta name="seaoflogs_params" content=[INITIAL_PARAMS] />
   <meta name="seaoflogs_target" content=[PAGE_ORIGIN] />
+  <meta name="seaoflogs_nonce" content=[NONCE] />
   <meta name="seaoflogs_logs" content=[LOGS] />
   <link rel="stylesheet" href="seaoflogs.css" />
   <script src="seaoflogs.js" />

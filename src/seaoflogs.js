@@ -58,7 +58,7 @@ let global_resize_expected_height = null;
 let global_popup_message_index = null;
 
 /** When we want to alter the url query params, we'll do it by postMessage to this
- * target. Initialized by the 'init' method.
+ * target. Initialized by the 'init' method to {target, nonce}.
  */
 let global_target = null;
 
@@ -75,18 +75,19 @@ let global_target = null;
 window.onload = (_) => {
   const params = document.getElementsByTagName("meta")["seaoflogs_params"]?.content;
   const target = document.getElementsByTagName("meta")["seaoflogs_target"]?.content;
+  const nonce = document.getElementsByTagName("meta")["seaoflogs_nonce"]?.content;
   const logs = document.getElementsByTagName("meta")["seaoflogs_logs"]?.content;
-  if (params != null || target != null || logs != null) {
-      init(new URLSearchParams(params), target, logs);
+  if (params != null || target != null || nonce != null || logs != null) {
+      init(new URLSearchParams(params), target, nonce, logs);
   }
 }
 
 /** This entry-point may be called either directly from a same-origin host,
  * or by the window.onload handler
  */
-function init(params, target, logs_src) {
+function init(params, target, nonce, logs_src) {
   // Chrome treats local files specially: they all have target 'null' for purposes of postMessage
-  global_target = target;
+  global_target = {target, nonce};
   global_messages = [];
   global_log_counts = {};
 
@@ -244,7 +245,7 @@ function control_handler(event) {
   // update URL
   const params = read_controls();
   if (update_url) {
-    window.top.postMessage(params.toString(), global_target);
+    window.top.postMessage({nonce: global_target.nonce, params:params.toString()}, global_target.target);
   }
 
   clearTimeout(global_debounce_timeout);
