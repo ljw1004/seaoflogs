@@ -112,6 +112,7 @@ function init(params, target, nonce, logs_src) {
 
   render_page();
   render_controls();
+  document.getElementById("loadbutton").style.display = global_messages.length == 0 ? 'inline' : 'none';
   document.getElementById(
       "loading"
   ).innerText = `Loading ${global_messages.length} messages...`;

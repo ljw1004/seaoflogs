@@ -316,6 +316,7 @@ function init(params, target, nonce, logs_src) {
 
   render_page();
   render_controls();
+  document.getElementById(&quot;loadbutton&quot;).style.display = global_messages.length == 0 ? &apos;inline&apos; : &apos;none&apos;;
   document.getElementById(
       &quot;loading&quot;
   ).innerText = `Loading ${global_messages.length} messages...`;
